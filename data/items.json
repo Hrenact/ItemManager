@@ -1,44 +1,86 @@
 [
   {
-    "id": "e4802791-3369-4687-b9f4-9fc683785e2e",
-    "title": "啊我的娃达娃的",
-    "creator": "",
-    "url": "",
+    "id": "91d7330d-f729-44c2-981b-5a09d9851c33",
+    "title": "Hrenact.NET",
+    "creator": "Hrenact",
+    "url": "https://hrenact.net/",
     "localPath": "",
-    "tags": [],
-    "notes": "",
+    "tags": [
+      "Link"
+    ],
+    "notes": "Hrenact 白轭's\n个人 文档库 / Wiki 网站 \nSomething for Nothing.",
     "coverMode": "url",
-    "coverUrl": "",
+    "coverUrl": "https://hrenact.net/icon.png",
     "coverPath": "",
-    "createdAt": "2026-07-14T14:21:17.864Z",
-    "updatedAt": "2026-07-14T14:21:17.864Z"
+    "createdAt": "2026-07-14T15:20:59.573Z",
+    "updatedAt": "2026-07-14T15:21:55.894Z"
   },
   {
-    "id": "700680af-d056-4ccb-8a60-107864298bb3",
-    "title": "阿瓦达哇的",
-    "creator": "",
-    "url": "",
+    "id": "b3cf371b-8165-4d0e-99f4-c3e117cc0608",
+    "title": "まじ鬼ウルフ",
+    "creator": "muu(ﾑｰ)",
+    "url": "https://booth.pm/zh-cn/items/7903171",
     "localPath": "",
-    "tags": [],
-    "notes": "",
+    "tags": [
+      "Avatar",
+      "Booth"
+    ],
+    "notes": "事前にModular Avatarを導入してください。\n\nSNSなどに投稿する際はハッシュタグ\n#muu3d をつけていただけると喜びます🐾",
     "coverMode": "url",
-    "coverUrl": "",
+    "coverUrl": "https://booth.pximg.net/6410be59-7e9e-4ffd-a5a7-58a5c72ff572/i/7903171/5e4ecbc0-a2b8-4831-9502-15858b097cbf_base_resized.jpg",
     "coverPath": "",
-    "createdAt": "2026-07-14T14:21:23.233Z",
-    "updatedAt": "2026-07-14T14:21:23.233Z"
+    "createdAt": "2026-07-14T15:23:24.187Z",
+    "updatedAt": "2026-07-14T15:24:04.973Z"
   },
   {
-    "id": "d7430709-428e-48a7-a43f-d7d1e87c68ae",
-    "title": "2222",
-    "creator": "",
-    "url": "",
+    "id": "73c869ec-5ea1-4e8b-86fe-6038c12c5d41",
+    "title": "【無料】RARAの星空シェーダー / RARA - StarfieldUnlit v1.3",
+    "creator": "RARAlabo",
+    "url": "https://booth.pm/zh-cn/items/7567803",
     "localPath": "",
-    "tags": [],
-    "notes": "",
+    "tags": [
+      "World",
+      "Booth"
+    ],
+    "notes": "VRChat のワールドの空に、加算合成でちらちら光る星を散らすためのシェーダーセットです。Skybox を邪魔せずに星だけを上に乗せる作りなので、夕焼け Skybox の上にも夜空の Skybox の上にも置けます。等星っぽい明るさのばらつき、ところどころ強めに瞬く星、流星、銀河帯、雲との連動による減光まで一通り入っています。",
     "coverMode": "url",
-    "coverUrl": "",
+    "coverUrl": "https://booth.pximg.net/a4067074-5bfc-42dd-bc96-62a35283dda0/i/7567803/2de4b9d2-400d-44fa-b5b5-b33fd0fd200a_base_resized.jpg",
     "coverPath": "",
-    "createdAt": "2026-07-14T14:21:27.537Z",
-    "updatedAt": "2026-07-14T14:21:27.537Z"
+    "createdAt": "2026-07-14T15:24:35.405Z",
+    "updatedAt": "2026-07-14T15:25:27.514Z"
+  },
+  {
+    "id": "e79aa2b7-49a6-4160-b2ac-a5f7622fd3a9",
+    "title": "Niko",
+    "creator": "Hrenact",
+    "url": "https://vrchat.com/home/avatar/avtr_8bc898c0-ba00-478f-bd05-d48344a654c5",
+    "localPath": "",
+    "tags": [
+      "Avatar",
+      "VRChat"
+    ],
+    "notes": "OneShot Niko",
+    "coverMode": "url",
+    "coverUrl": "https://api.vrchat.cloud/api/1/image/file_fce87e18-c278-4c32-b6e1-38d2dfd7871c/2/512",
+    "coverPath": "",
+    "createdAt": "2026-07-14T15:27:32.532Z",
+    "updatedAt": "2026-07-14T15:27:32.532Z"
+  },
+  {
+    "id": "1ba8f5f1-8a96-42f0-aa50-dba5164f2f35",
+    "title": "Horizon Dreamer［Alpha］",
+    "creator": "Hrenact",
+    "url": "https://vrchat.com/home/world/wrld_7e5c14d8-0024-4e16-8a13-384ec293eb4a/info",
+    "localPath": "",
+    "tags": [
+      "World",
+      "VRChat"
+    ],
+    "notes": "Death Stranding 2˸ On the Beach｜MMD",
+    "coverMode": "url",
+    "coverUrl": "https://api.vrchat.cloud/api/1/file/file_62935845-b275-4382-ae79-cb3d47257f10/4/file",
+    "coverPath": "",
+    "createdAt": "2026-07-14T15:28:32.983Z",
+    "updatedAt": "2026-07-14T15:28:32.983Z"
   }
 ]

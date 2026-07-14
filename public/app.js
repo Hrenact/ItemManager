@@ -14,6 +14,8 @@ const state = {
   pendingMessageResolve: null
 };
 
+const VIEW_SETTINGS_KEY = "item-manager-view-settings";
+
 const $ = (selector) => document.querySelector(selector);
 
 const grid = $("#itemsGrid");
@@ -81,6 +83,29 @@ function coverFor(item) {
   return `<img class="cover" src="${escapeHtml(source)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), { className: 'cover cover-placeholder', textContent: '?' }))" />`;
 }
 
+function loadViewSettings() {
+  const fallback = { coverRatio: "1 / 1", cardSize: "280px" };
+  try {
+    return { ...fallback, ...JSON.parse(localStorage.getItem(VIEW_SETTINGS_KEY) || "{}") };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveViewSettings() {
+  localStorage.setItem(VIEW_SETTINGS_KEY, JSON.stringify({
+    coverRatio: $("#coverRatioSelect").value,
+    cardSize: $("#cardSizeSelect").value
+  }));
+}
+
+function applyViewSettings(settings = loadViewSettings()) {
+  $("#coverRatioSelect").value = settings.coverRatio;
+  $("#cardSizeSelect").value = settings.cardSize;
+  document.documentElement.style.setProperty("--cover-ratio", settings.coverRatio);
+  document.documentElement.style.setProperty("--card-min", settings.cardSize);
+}
+
 function getFilteredItems() {
   const query = $("#searchInput").value.trim().toLowerCase();
   return state.items.filter((item) => {
@@ -110,7 +135,6 @@ function renderItems() {
         <div class="card-actions">
           <button data-action="open">网页</button>
           <button data-action="reveal">路径</button>
-          <button data-action="edit">编辑</button>
         </div>
       </div>
     </article>
@@ -264,7 +288,12 @@ $("#closeTagDialogButton").addEventListener("click", () => tagDialog.close());
 $("#cancelButton").addEventListener("click", () => dialog.close());
 $("#searchInput").addEventListener("input", renderItems);
 $("#coverRatioSelect").addEventListener("change", () => {
-  document.documentElement.style.setProperty("--cover-ratio", $("#coverRatioSelect").value);
+  applyViewSettings({ ...loadViewSettings(), coverRatio: $("#coverRatioSelect").value });
+  saveViewSettings();
+});
+$("#cardSizeSelect").addEventListener("change", () => {
+  applyViewSettings({ ...loadViewSettings(), cardSize: $("#cardSizeSelect").value });
+  saveViewSettings();
 });
 $("#pickFolderButton").addEventListener("click", () => pickPath("folder"));
 $("#pickFileButton").addEventListener("click", () => pickPath("file"));
@@ -416,11 +445,11 @@ $("#deleteButton").addEventListener("click", async () => {
 grid.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   const card = event.target.closest(".card");
-  if (!button || !card) return;
+  if (!card) return;
   const item = state.items.find((entry) => entry.id === card.dataset.id);
   if (!item) return;
 
-  if (button.dataset.action === "edit") {
+  if (!button) {
     openDialog(item);
     return;
   }
@@ -451,6 +480,7 @@ grid.addEventListener("click", async (event) => {
   }
 });
 
+applyViewSettings();
 loadData().catch((error) => {
   emptyState.classList.add("visible");
   emptyState.innerHTML = `<h3>加载失败</h3><p>${escapeHtml(error.message)}</p>`;
