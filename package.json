@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "description": "A local dark-theme item library manager.",
-  "main": "server.js",
+  "main": "electron-main.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "electron": "electron .",
+    "dist": "set \"ELECTRON_CACHE=%CD%\\.electron-cache\"&& set \"ELECTRON_BUILDER_CACHE=%CD%\\.electron-builder-cache\"&& electron-builder --win"
   },
   "keywords": [
     "item-manager",
@@ -13,5 +15,31 @@
     "local"
   ],
   "author": "",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.hrenact.itemmanager",
+    "productName": "Item Manager",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "public/**/*",
+      "server.js",
+      "electron-main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "data"
+      }
+    ],
+    "win": {
+      "target": "portable"
+    }
+  }
 }

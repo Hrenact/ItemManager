@@ -6,7 +6,8 @@ const crypto = require("crypto");
 const { spawn, execFile } = require("child_process");
 
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, "data");
+// Electron can supply a writable archive directory beside its executable.
+const DATA_DIR = path.resolve(process.env.ITEM_MANAGER_DATA_DIR || path.join(ROOT, "data"));
 const PUBLIC_DIR = path.join(ROOT, "public");
 const COVER_DIR = path.join(DATA_DIR, "covers");
 const DB_FILE = path.join(DATA_DIR, "items.json");
@@ -352,15 +353,40 @@ async function serveStatic(req, res, url) {
   }
 }
 
-ensureStore().then(() => {
+function createAppServer() {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (url.pathname.startsWith("/api/")) return handleApi(req, res, url);
     return serveStatic(req, res, url);
   });
 
-  server.listen(PORT, () => {
-    console.log(`Item Manager is running at http://localhost:${PORT}`);
-    console.log(`All project data is stored under ${ROOT}`);
+  return server;
+}
+
+async function startServer(port = PORT) {
+  await ensureStore();
+  const server = createAppServer();
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", () => {
+      server.removeListener("error", reject);
+      resolve();
+    });
   });
-});
+
+  const address = server.address();
+  const activePort = typeof address === "object" && address ? address.port : port;
+  console.log(`Item Manager is running at http://127.0.0.1:${activePort}`);
+  console.log(`All archive data is stored under ${DATA_DIR}`);
+  return { server, port: activePort };
+}
+
+if (require.main === module) {
+  startServer().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { startServer };
