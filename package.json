@@ -1,0 +1,17 @@
+{
+  "name": "item-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local dark-theme item library manager.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "item-manager",
+    "library",
+    "local"
+  ],
+  "author": "",
+  "license": "UNLICENSED"
+}

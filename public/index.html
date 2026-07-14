@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Item Manager</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">IM</div>
+          <div>
+            <h1>Item Manager</h1>
+            <p>Local Library</p>
+          </div>
+        </div>
+
+        <button class="primary" id="newItemButton">+ 新建条目</button>
+        <button class="secondary sidebar-action" id="manageTagsButton">新建/编辑标签</button>
+
+        <label class="search">
+          <span>搜索</span>
+          <input id="searchInput" type="search" placeholder="名称、作者、标签、备注" />
+        </label>
+
+        <section class="tag-panel">
+          <div class="label-row">
+            <h2>标签</h2>
+            <button type="button" class="text-button" id="clearTagFiltersButton">清除</button>
+          </div>
+          <div class="sidebar-tags" id="sidebarTags"></div>
+        </section>
+
+        <div class="stats">
+          <div>
+            <strong id="totalCount">0</strong>
+            <span>条目</span>
+          </div>
+          <div>
+            <strong id="shownCount">0</strong>
+            <span>显示</span>
+          </div>
+        </div>
+      </aside>
+
+      <section class="content">
+        <header class="toolbar">
+          <div>
+            <h2>收藏库</h2>
+            <p>链接、路径、封面和备注都保存在此项目文件夹中。</p>
+          </div>
+          <div class="toolbar-controls">
+            <label>
+              <span>封面比例</span>
+              <select id="coverRatioSelect" aria-label="封面比例">
+                <option value="1 / 1">1:1</option>
+                <option value="4 / 3">4:3</option>
+                <option value="16 / 9">16:9</option>
+              </select>
+            </label>
+          </div>
+        </header>
+
+        <div class="grid" id="itemsGrid"></div>
+        <div class="empty" id="emptyState">
+          <h3>还没有条目</h3>
+          <p>添加第一个作品、资产、文档或下载项。</p>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="itemDialog">
+      <form id="itemForm" method="dialog">
+        <div class="dialog-head">
+          <h2 id="dialogTitle">新建条目</h2>
+          <button type="button" class="icon-button" id="closeDialogButton" aria-label="关闭">×</button>
+        </div>
+
+        <input type="hidden" id="itemId" />
+
+        <div class="form-grid">
+          <label>
+            <span>标题</span>
+            <input id="titleInput" required placeholder="作品或资源名称" />
+          </label>
+          <label>
+            <span>作者 / 商店</span>
+            <input id="creatorInput" placeholder="Creator, Shop, Circle" />
+          </label>
+          <label>
+            <span>网页链接</span>
+            <input id="urlInput" type="url" placeholder="https://..." />
+          </label>
+          <div class="field">
+            <div class="label-row">
+              本地路径
+              <span class="inline-actions">
+                <button type="button" class="mini-button" id="pickFolderButton">选择文件夹</button>
+                <button type="button" class="mini-button" id="pickFileButton">选择文件</button>
+              </span>
+            </div>
+            <input id="pathInput" placeholder="F:\Downloads\item.zip 或文件夹路径" />
+          </div>
+          <div class="field wide">
+            <span>标签</span>
+            <div class="tag-picker" id="tagPicker"></div>
+          </div>
+        </div>
+
+        <fieldset class="cover-field">
+          <legend>封面</legend>
+          <div class="segmented">
+            <label><input type="radio" name="coverMode" value="url" checked /> 加载网页链接</label>
+            <label><input type="radio" name="coverMode" value="local" /> 使用本地图片</label>
+          </div>
+          <label id="coverUrlGroup">
+            <span>封面 URL</span>
+            <input id="coverUrlInput" type="url" placeholder="https://.../cover.jpg" />
+          </label>
+          <label id="coverPathGroup" hidden>
+            <span>本地图片路径</span>
+            <input id="coverPathInput" placeholder="F:\Pictures\cover.png" />
+          </label>
+          <button type="button" class="secondary" id="copyCoverButton">复制本地封面到项目</button>
+        </fieldset>
+
+        <label>
+          <span>备注</span>
+          <textarea id="notesInput" rows="4" placeholder="版本、购买状态、安装说明等"></textarea>
+        </label>
+
+        <div class="dialog-actions">
+          <button type="button" class="danger" id="deleteButton">删除</button>
+          <div>
+            <button type="button" class="secondary" id="cancelButton">取消</button>
+            <button class="primary" id="saveButton">保存</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="tagDialog">
+      <form id="tagForm" method="dialog">
+        <div class="dialog-head">
+          <h2>新建/编辑标签</h2>
+          <button type="button" class="icon-button" id="closeTagDialogButton" aria-label="关闭">×</button>
+        </div>
+
+        <div class="tag-manager">
+          <aside class="tag-manager-side">
+            <div class="tag-manager-list" id="tagManagerList"></div>
+            <button type="button" class="secondary" id="newTagButton">新建标签</button>
+          </aside>
+          <section class="tag-editor">
+            <input type="hidden" id="tagIdInput" />
+            <label>
+              <span>标签名称</span>
+              <input id="tagNameInput" placeholder="avatar" />
+            </label>
+            <div class="color-grid">
+              <label>
+                <span>背景颜色</span>
+                <input id="tagBgInput" type="color" value="#202633" />
+              </label>
+              <label>
+                <span>文字颜色</span>
+                <input id="tagTextInput" type="color" value="#bfd0df" />
+              </label>
+              <label>
+                <span>边框颜色</span>
+                <input id="tagBorderInput" type="color" value="#2a3140" />
+              </label>
+            </div>
+            <div class="tag-preview-row">
+              <span>预览</span>
+              <span class="tag" id="tagPreview">Tag</span>
+            </div>
+            <div class="dialog-actions">
+              <button type="button" class="danger" id="deleteTagButton">删除</button>
+              <div>
+                <button type="button" class="secondary" id="resetTagColorsButton">默认</button>
+                <button type="button" class="secondary" id="randomTagColorsButton">随机</button>
+                <button class="primary" id="saveTagButton">保存</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="messageDialog">
+      <form method="dialog">
+        <div class="dialog-head">
+          <h2 id="messageTitle">提示</h2>
+          <button type="button" class="icon-button" id="messageCloseButton" aria-label="关闭">×</button>
+        </div>
+        <p class="message-body" id="messageBody"></p>
+        <div class="dialog-actions message-actions">
+          <span></span>
+          <div>
+            <button type="button" class="secondary" id="messageCancelButton">取消</button>
+            <button class="primary" id="messageOkButton">确定</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
