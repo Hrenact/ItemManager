@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "electron": "electron .",
-    "clean:release": "powershell -NoProfile -Command \"Remove-Item -LiteralPath release -Recurse -Force -ErrorAction SilentlyContinue\"",
+    "clean:release": "powershell -NoProfile -Command \"if (Test-Path -LiteralPath release) { Remove-Item -LiteralPath release -Recurse -Force }\"",
     "dist": "npm run clean:release && set \"ELECTRON_CACHE=%CD%\\.electron-cache\"&& set \"ELECTRON_BUILDER_CACHE=%CD%\\.electron-builder-cache\"&& electron-builder --win"
   },
   "keywords": [
