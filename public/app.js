@@ -15,6 +15,7 @@ const state = {
 };
 
 const VIEW_SETTINGS_KEY = "item-manager-view-settings";
+const DEFAULT_VIEW_SETTINGS = { coverRatio: "1 / 1", cardSize: "280px" };
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -25,6 +26,8 @@ const tagDialog = $("#tagDialog");
 const tagForm = $("#tagForm");
 const messageDialog = $("#messageDialog");
 const emptyState = $("#emptyState");
+const content = $(".content");
+const scrollTopButton = $("#scrollTopButton");
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -83,23 +86,27 @@ function coverFor(item) {
   return `<img class="cover" src="${escapeHtml(source)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), { className: 'cover cover-placeholder', textContent: '?' }))" />`;
 }
 
-function loadViewSettings() {
-  const fallback = { coverRatio: "1 / 1", cardSize: "280px" };
+function loadLocalViewSettings() {
   try {
-    return { ...fallback, ...JSON.parse(localStorage.getItem(VIEW_SETTINGS_KEY) || "{}") };
+    return { ...DEFAULT_VIEW_SETTINGS, ...JSON.parse(localStorage.getItem(VIEW_SETTINGS_KEY) || "{}") };
   } catch {
-    return fallback;
+    return { ...DEFAULT_VIEW_SETTINGS };
   }
 }
 
-function saveViewSettings() {
-  localStorage.setItem(VIEW_SETTINGS_KEY, JSON.stringify({
+async function saveViewSettings() {
+  const settings = {
     coverRatio: $("#coverRatioSelect").value,
     cardSize: $("#cardSizeSelect").value
-  }));
+  };
+  localStorage.setItem(VIEW_SETTINGS_KEY, JSON.stringify(settings));
+  return api("/api/settings", {
+    method: "PUT",
+    body: JSON.stringify(settings)
+  });
 }
 
-function applyViewSettings(settings = loadViewSettings()) {
+function applyViewSettings(settings = DEFAULT_VIEW_SETTINGS) {
   $("#coverRatioSelect").value = settings.coverRatio;
   $("#cardSizeSelect").value = settings.cardSize;
   document.documentElement.style.setProperty("--cover-ratio", settings.coverRatio);
@@ -124,17 +131,17 @@ function renderItems() {
   $("#shownCount").textContent = items.length;
   emptyState.classList.toggle("visible", items.length === 0);
   grid.innerHTML = items.map((item) => `
-    <article class="card" data-id="${item.id}">
+    <article class="card" data-id="${item.id}" title="编辑 ${escapeHtml(item.title)}">
       ${coverFor(item)}
       <div class="card-body">
         <h3>${escapeHtml(item.title)}</h3>
         <p class="meta">${escapeHtml(item.creator || "未设置作者")}</p>
         <div class="tags">
-          ${(item.tags || []).slice(0, 5).map((tag) => `<span class="tag" style="${tagStyle(tag)}">${escapeHtml(tag)}</span>`).join("")}
+          ${(item.tags || []).slice(0, 5).map((tag) => `<span class="tag" style="${tagStyle(tag)}" title="标签：${escapeHtml(tag)}">${escapeHtml(tag)}</span>`).join("")}
         </div>
         <div class="card-actions">
-          <button data-action="open">网页</button>
-          <button data-action="reveal">路径</button>
+          <button data-action="open" title="打开 ${escapeHtml(item.title)} 的网页链接">网页</button>
+          <button data-action="reveal" title="在资源管理器中定位 ${escapeHtml(item.title)}">路径</button>
         </div>
       </div>
     </article>
@@ -145,7 +152,7 @@ function renderSidebarTags() {
   const sidebarTags = $("#sidebarTags");
   sidebarTags.innerHTML = state.tags.length
     ? state.tags.map((tag) => `
-      <label class="filter-tag ${state.activeTagFilters.has(tag.name) ? "active" : ""}" style="${tagStyle(tag.name)}">
+      <label class="filter-tag ${state.activeTagFilters.has(tag.name) ? "active" : ""}" style="${tagStyle(tag.name)}" title="筛选标签：${escapeHtml(tag.name)}">
         <input type="checkbox" value="${escapeHtml(tag.name)}" ${state.activeTagFilters.has(tag.name) ? "checked" : ""} />
         ${escapeHtml(tag.name)}
       </label>
@@ -158,7 +165,7 @@ function renderTagPicker() {
   const picker = $("#tagPicker");
   picker.innerHTML = state.tags.length
     ? state.tags.map((tag) => `
-      <label class="tag-choice" style="${tagStyle(tag.name)}">
+      <label class="tag-choice" style="${tagStyle(tag.name)}" title="为条目切换标签：${escapeHtml(tag.name)}">
         <input type="checkbox" value="${escapeHtml(tag.name)}" ${state.selectedTags.has(tag.name) ? "checked" : ""} />
         ${escapeHtml(tag.name)}
       </label>
@@ -170,8 +177,8 @@ function renderTagManager() {
   const list = $("#tagManagerList");
   list.innerHTML = state.tags.length
     ? state.tags.map((tag) => `
-      <button type="button" class="tag-manager-item ${tag.id === state.editingTagId ? "active" : ""}" data-id="${tag.id}">
-        <span class="tag" style="${tagStyle(tag.name)}">${escapeHtml(tag.name)}</span>
+      <button type="button" class="tag-manager-item ${tag.id === state.editingTagId ? "active" : ""}" data-id="${tag.id}" title="编辑标签：${escapeHtml(tag.name)}">
+        <span class="tag" style="${tagStyle(tag.name)}" title="标签：${escapeHtml(tag.name)}">${escapeHtml(tag.name)}</span>
       </button>
     `).join("")
     : `<p class="muted">暂无标签</p>`;
@@ -269,12 +276,14 @@ async function pickPath(kind) {
 }
 
 async function loadData() {
-  const [items, tags] = await Promise.all([
+  const [items, tags, settings] = await Promise.all([
     api("/api/items"),
-    api("/api/tags")
+    api("/api/tags"),
+    api("/api/settings").catch(() => loadLocalViewSettings())
   ]);
   state.items = items;
   state.tags = tags;
+  applyViewSettings(settings);
   renderAll();
 }
 
@@ -287,13 +296,19 @@ $("#closeDialogButton").addEventListener("click", () => dialog.close());
 $("#closeTagDialogButton").addEventListener("click", () => tagDialog.close());
 $("#cancelButton").addEventListener("click", () => dialog.close());
 $("#searchInput").addEventListener("input", renderItems);
+content.addEventListener("scroll", () => {
+  scrollTopButton.classList.toggle("visible", content.scrollTop > 240);
+});
+scrollTopButton.addEventListener("click", () => {
+  content.scrollTo({ top: 0, behavior: "smooth" });
+});
 $("#coverRatioSelect").addEventListener("change", () => {
-  applyViewSettings({ ...loadViewSettings(), coverRatio: $("#coverRatioSelect").value });
-  saveViewSettings();
+  applyViewSettings({ coverRatio: $("#coverRatioSelect").value, cardSize: $("#cardSizeSelect").value });
+  saveViewSettings().catch((error) => notify(error.message));
 });
 $("#cardSizeSelect").addEventListener("change", () => {
-  applyViewSettings({ ...loadViewSettings(), cardSize: $("#cardSizeSelect").value });
-  saveViewSettings();
+  applyViewSettings({ coverRatio: $("#coverRatioSelect").value, cardSize: $("#cardSizeSelect").value });
+  saveViewSettings().catch((error) => notify(error.message));
 });
 $("#pickFolderButton").addEventListener("click", () => pickPath("folder"));
 $("#pickFileButton").addEventListener("click", () => pickPath("file"));
@@ -480,7 +495,7 @@ grid.addEventListener("click", async (event) => {
   }
 });
 
-applyViewSettings();
+applyViewSettings(loadLocalViewSettings());
 loadData().catch((error) => {
   emptyState.classList.add("visible");
   emptyState.innerHTML = `<h3>加载失败</h3><p>${escapeHtml(error.message)}</p>`;

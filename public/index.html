@@ -10,38 +10,32 @@
     <main class="shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">IM</div>
+          <img class="brand-mark" src="/image/Icon.png" alt="" />
           <div>
             <h1>Item Manager</h1>
             <p>Local Library</p>
           </div>
         </div>
 
-        <button class="primary" id="newItemButton">+ 新建条目</button>
-        <button class="secondary sidebar-action" id="manageTagsButton">新建/编辑标签</button>
+        <button class="primary" id="newItemButton" title="添加新的收藏条目">+ 新建条目</button>
+        <button class="secondary sidebar-action" id="manageTagsButton" title="打开标签管理器">新建/编辑标签</button>
 
         <label class="search">
           <span>搜索</span>
-          <input id="searchInput" type="search" placeholder="名称、作者、标签、备注" />
+          <input id="searchInput" type="search" placeholder="名称、作者、标签、备注" title="按名称、作者、标签或备注搜索" />
         </label>
 
         <section class="tag-panel">
           <div class="label-row">
             <h2>标签</h2>
-            <button type="button" class="text-button" id="clearTagFiltersButton">清除</button>
+            <button type="button" class="text-button" id="clearTagFiltersButton" title="清除所有标签筛选">清除</button>
           </div>
           <div class="sidebar-tags" id="sidebarTags"></div>
         </section>
 
         <div class="stats">
-          <div>
-            <strong id="totalCount">0</strong>
-            <span>条目</span>
-          </div>
-          <div>
-            <strong id="shownCount">0</strong>
-            <span>显示</span>
-          </div>
+          <span>条目</span>
+          <strong><span id="shownCount">0</span>/<span id="totalCount">0</span></strong>
         </div>
       </aside>
 
@@ -54,7 +48,7 @@
           <div class="toolbar-controls">
             <label>
               <span>栏目大小</span>
-              <select id="cardSizeSelect" aria-label="栏目大小">
+              <select id="cardSizeSelect" aria-label="栏目大小" title="调整卡片栏目大小">
                 <option value="220px">小</option>
                 <option value="280px">中</option>
                 <option value="360px">大</option>
@@ -62,7 +56,7 @@
             </label>
             <label>
               <span>封面比例</span>
-              <select id="coverRatioSelect" aria-label="封面比例">
+              <select id="coverRatioSelect" aria-label="封面比例" title="调整封面显示比例">
                 <option value="1 / 1">1:1</option>
                 <option value="4 / 3">4:3</option>
                 <option value="16 / 9">16:9</option>
@@ -76,6 +70,7 @@
           <h3>还没有条目</h3>
           <p>添加第一个作品、资产、文档或下载项。</p>
         </div>
+        <button type="button" class="scroll-top" id="scrollTopButton" aria-label="返回顶部" title="返回顶部">↑</button>
       </section>
     </main>
 
@@ -83,7 +78,7 @@
       <form id="itemForm" method="dialog">
         <div class="dialog-head">
           <h2 id="dialogTitle">新建条目</h2>
-          <button type="button" class="icon-button" id="closeDialogButton" aria-label="关闭">×</button>
+          <button type="button" class="icon-button" id="closeDialogButton" aria-label="关闭" title="关闭窗口">×</button>
         </div>
 
         <input type="hidden" id="itemId" />
@@ -91,25 +86,25 @@
         <div class="form-grid">
           <label>
             <span>标题</span>
-            <input id="titleInput" required placeholder="作品或资源名称" />
+            <input id="titleInput" required placeholder="作品或资源名称" title="输入条目标题" />
           </label>
           <label>
             <span>作者 / 商店</span>
-            <input id="creatorInput" placeholder="Creator, Shop, Circle" />
+            <input id="creatorInput" placeholder="Creator, Shop, Circle" title="输入作者、商店或来源" />
           </label>
           <label>
             <span>网页链接</span>
-            <input id="urlInput" type="url" placeholder="https://..." />
+            <input id="urlInput" type="url" placeholder="https://..." title="输入可打开的网页链接" />
           </label>
           <div class="field">
             <div class="label-row">
               本地路径
               <span class="inline-actions">
-                <button type="button" class="mini-button" id="pickFolderButton">选择文件夹</button>
-                <button type="button" class="mini-button" id="pickFileButton">选择文件</button>
+                <button type="button" class="mini-button" id="pickFolderButton" title="从本机选择一个文件夹">选择文件夹</button>
+                <button type="button" class="mini-button" id="pickFileButton" title="从本机选择一个文件">选择文件</button>
               </span>
             </div>
-            <input id="pathInput" placeholder="F:\Downloads\item.zip 或文件夹路径" />
+            <input id="pathInput" placeholder="F:\Downloads\item.zip 或文件夹路径" title="输入或选择本地文件/文件夹路径" />
           </div>
           <div class="field wide">
             <span>标签</span>
@@ -120,30 +115,30 @@
         <fieldset class="cover-field">
           <legend>封面</legend>
           <div class="segmented">
-            <label><input type="radio" name="coverMode" value="url" checked /> 加载网页链接</label>
-            <label><input type="radio" name="coverMode" value="local" /> 使用本地图片</label>
+            <label title="使用远程图片链接作为封面"><input type="radio" name="coverMode" value="url" checked /> 加载网页链接</label>
+            <label title="使用本机图片作为封面"><input type="radio" name="coverMode" value="local" /> 使用本地图片</label>
           </div>
           <label id="coverUrlGroup">
             <span>封面 URL</span>
-            <input id="coverUrlInput" type="url" placeholder="https://.../cover.jpg" />
+            <input id="coverUrlInput" type="url" placeholder="https://.../cover.jpg" title="输入封面图片 URL" />
           </label>
           <label id="coverPathGroup" hidden>
             <span>本地图片路径</span>
-            <input id="coverPathInput" placeholder="F:\Pictures\cover.png" />
+            <input id="coverPathInput" placeholder="F:\Pictures\cover.png" title="输入本地封面图片路径" />
           </label>
-          <button type="button" class="secondary" id="copyCoverButton">复制本地封面到项目</button>
+          <button type="button" class="secondary" id="copyCoverButton" title="把本地封面复制到项目数据目录">复制本地封面到项目</button>
         </fieldset>
 
         <label>
           <span>备注</span>
-          <textarea id="notesInput" rows="4" placeholder="版本、购买状态、安装说明等"></textarea>
+          <textarea id="notesInput" rows="4" placeholder="版本、购买状态、安装说明等" title="填写条目备注"></textarea>
         </label>
 
         <div class="dialog-actions">
-          <button type="button" class="danger" id="deleteButton">删除</button>
+          <button type="button" class="danger" id="deleteButton" title="删除当前条目">删除</button>
           <div>
-            <button type="button" class="secondary" id="cancelButton">取消</button>
-            <button class="primary" id="saveButton">保存</button>
+            <button type="button" class="secondary" id="cancelButton" title="放弃更改并关闭">取消</button>
+            <button class="primary" id="saveButton" title="保存条目">保存</button>
           </div>
         </div>
       </form>
@@ -153,32 +148,32 @@
       <form id="tagForm" method="dialog">
         <div class="dialog-head">
           <h2>新建/编辑标签</h2>
-          <button type="button" class="icon-button" id="closeTagDialogButton" aria-label="关闭">×</button>
+          <button type="button" class="icon-button" id="closeTagDialogButton" aria-label="关闭" title="关闭窗口">×</button>
         </div>
 
         <div class="tag-manager">
           <aside class="tag-manager-side">
             <div class="tag-manager-list" id="tagManagerList"></div>
-            <button type="button" class="secondary" id="newTagButton">新建标签</button>
+            <button type="button" class="secondary" id="newTagButton" title="创建一个新标签">新建标签</button>
           </aside>
           <section class="tag-editor">
             <input type="hidden" id="tagIdInput" />
             <label>
               <span>标签名称</span>
-              <input id="tagNameInput" placeholder="avatar" />
+              <input id="tagNameInput" placeholder="avatar" title="输入标签名称" />
             </label>
             <div class="color-grid">
               <label>
                 <span>背景颜色</span>
-                <input id="tagBgInput" type="color" value="#202633" />
+                <input id="tagBgInput" type="color" value="#202633" title="选择标签背景色" />
               </label>
               <label>
                 <span>文字颜色</span>
-                <input id="tagTextInput" type="color" value="#bfd0df" />
+                <input id="tagTextInput" type="color" value="#bfd0df" title="选择标签文字颜色" />
               </label>
               <label>
                 <span>边框颜色</span>
-                <input id="tagBorderInput" type="color" value="#2a3140" />
+                <input id="tagBorderInput" type="color" value="#2a3140" title="选择标签边框颜色" />
               </label>
             </div>
             <div class="tag-preview-row">
@@ -186,11 +181,11 @@
               <span class="tag" id="tagPreview">Tag</span>
             </div>
             <div class="dialog-actions">
-              <button type="button" class="danger" id="deleteTagButton">删除</button>
+              <button type="button" class="danger" id="deleteTagButton" title="删除当前标签">删除</button>
               <div>
-                <button type="button" class="secondary" id="resetTagColorsButton">默认</button>
-                <button type="button" class="secondary" id="randomTagColorsButton">随机</button>
-                <button class="primary" id="saveTagButton">保存</button>
+                <button type="button" class="secondary" id="resetTagColorsButton" title="恢复默认标签颜色">默认</button>
+                <button type="button" class="secondary" id="randomTagColorsButton" title="随机生成标签颜色">随机</button>
+                <button class="primary" id="saveTagButton" title="保存标签">保存</button>
               </div>
             </div>
           </section>
@@ -202,14 +197,14 @@
       <form method="dialog">
         <div class="dialog-head">
           <h2 id="messageTitle">提示</h2>
-          <button type="button" class="icon-button" id="messageCloseButton" aria-label="关闭">×</button>
+          <button type="button" class="icon-button" id="messageCloseButton" aria-label="关闭" title="关闭提示">×</button>
         </div>
         <p class="message-body" id="messageBody"></p>
         <div class="dialog-actions message-actions">
           <span></span>
           <div>
-            <button type="button" class="secondary" id="messageCancelButton">取消</button>
-            <button class="primary" id="messageOkButton">确定</button>
+            <button type="button" class="secondary" id="messageCancelButton" title="取消操作">取消</button>
+            <button class="primary" id="messageOkButton" title="确认操作">确定</button>
           </div>
         </div>
       </form>

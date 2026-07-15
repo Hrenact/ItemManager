@@ -4,10 +4,25 @@ const path = require("path");
 
 let server;
 
-function archiveDirectory() {
+app.disableHardwareAcceleration();
+
+function executableDirectory() {
   return app.isPackaged
-    ? path.join(process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath), "data")
-    : path.join(__dirname, "data");
+    ? (process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath))
+    : __dirname;
+}
+
+function archiveDirectory() {
+  return path.join(executableDirectory(), "data");
+}
+
+function configurePortableProfile() {
+  const profileDirectory = path.join(archiveDirectory(), "electron-profile");
+  fs.mkdirSync(profileDirectory, { recursive: true });
+
+  app.setPath("userData", profileDirectory);
+  app.setPath("sessionData", path.join(profileDirectory, "session"));
+  app.commandLine.appendSwitch("disk-cache-dir", path.join(profileDirectory, "cache"));
 }
 
 function ensureArchiveDirectory(target) {
@@ -48,6 +63,8 @@ async function createWindow() {
 
   await window.loadURL(`http://127.0.0.1:${started.port}`);
 }
+
+configurePortableProfile();
 
 app.whenReady().then(createWindow).catch((error) => {
   dialog.showErrorBox("Item Manager failed to start", error.stack || error.message);

@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "electron": "electron .",
-    "dist": "set \"ELECTRON_CACHE=%CD%\\.electron-cache\"&& set \"ELECTRON_BUILDER_CACHE=%CD%\\.electron-builder-cache\"&& electron-builder --win"
+    "clean:release": "powershell -NoProfile -Command \"Remove-Item -LiteralPath release -Recurse -Force -ErrorAction SilentlyContinue\"",
+    "dist": "npm run clean:release && set \"ELECTRON_CACHE=%CD%\\.electron-cache\"&& set \"ELECTRON_BUILDER_CACHE=%CD%\\.electron-builder-cache\"&& electron-builder --win"
   },
   "keywords": [
     "item-manager",
@@ -23,11 +24,17 @@
   "build": {
     "appId": "com.hrenact.itemmanager",
     "productName": "Item Manager",
+    "afterPack": "build/after-pack.js",
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ],
     "directories": {
       "output": "release"
     },
     "files": [
       "public/**/*",
+      "image/**/*",
       "server.js",
       "electron-main.js",
       "package.json"
@@ -39,7 +46,11 @@
       }
     ],
     "win": {
-      "target": "portable"
+      "target": [
+        "dir",
+        "zip"
+      ],
+      "icon": "build/icon.ico"
     }
   }
 }

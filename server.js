@@ -9,14 +9,27 @@ const ROOT = __dirname;
 // Electron can supply a writable archive directory beside its executable.
 const DATA_DIR = path.resolve(process.env.ITEM_MANAGER_DATA_DIR || path.join(ROOT, "data"));
 const PUBLIC_DIR = path.join(ROOT, "public");
+const IMAGE_DIR = path.join(ROOT, "image");
 const COVER_DIR = path.join(DATA_DIR, "covers");
 const DB_FILE = path.join(DATA_DIR, "items.json");
 const TAGS_FILE = path.join(DATA_DIR, "tags.json");
+const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
 const PORT = Number(process.env.PORT || 4177);
 const DEFAULT_TAG_COLORS = {
   backgroundColor: "#202633",
   textColor: "#bfd0df",
   borderColor: "#2a3140"
+};
+const DEFAULT_SETTINGS = {
+  coverRatio: "1 / 1",
+  cardSize: "280px"
+};
+const ALLOWED_COVER_RATIOS = new Set(["1 / 1", "4 / 3", "16 / 9"]);
+const ALLOWED_CARD_SIZES = new Set(["220px", "280px", "360px"]);
+const LEGACY_COLUMN_SIZES = {
+  small: "220px",
+  medium: "280px",
+  large: "360px"
 };
 
 const MIME = {
@@ -53,6 +66,11 @@ async function ensureStore() {
     }));
     await fsp.writeFile(TAGS_FILE, `${JSON.stringify(tags, null, 2)}\n`, "utf8");
   }
+  try {
+    await fsp.access(SETTINGS_FILE);
+  } catch {
+    await writeSettings(DEFAULT_SETTINGS);
+  }
 }
 
 async function readJson(req) {
@@ -78,6 +96,34 @@ async function readTags() {
 
 async function writeTags(tags) {
   await fsp.writeFile(TAGS_FILE, `${JSON.stringify(tags, null, 2)}\n`, "utf8");
+}
+
+function cleanSettings(input = {}) {
+  const legacyCardSize = LEGACY_COLUMN_SIZES[input.columnSize];
+  const coverRatio = ALLOWED_COVER_RATIOS.has(input.coverRatio)
+    ? input.coverRatio
+    : DEFAULT_SETTINGS.coverRatio;
+  const cardSize = ALLOWED_CARD_SIZES.has(input.cardSize)
+    ? input.cardSize
+    : legacyCardSize || DEFAULT_SETTINGS.cardSize;
+
+  return { coverRatio, cardSize };
+}
+
+async function readSettings() {
+  await ensureStore();
+  try {
+    return cleanSettings(JSON.parse(await fsp.readFile(SETTINGS_FILE, "utf8")));
+  } catch {
+    await writeSettings(DEFAULT_SETTINGS);
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+async function writeSettings(settings) {
+  const clean = cleanSettings(settings);
+  await fsp.writeFile(SETTINGS_FILE, `${JSON.stringify(clean, null, 2)}\n`, "utf8");
+  return clean;
 }
 
 function send(res, status, body, type = "application/json; charset=utf-8") {
@@ -248,6 +294,14 @@ async function handleApi(req, res, url) {
       return send(res, 200, await readTags());
     }
 
+    if (url.pathname === "/api/settings" && req.method === "GET") {
+      return send(res, 200, await readSettings());
+    }
+
+    if (url.pathname === "/api/settings" && req.method === "PUT") {
+      return send(res, 200, await writeSettings(await readJson(req)));
+    }
+
     if (url.pathname === "/api/tags" && req.method === "POST") {
       const body = await readJson(req);
       const tags = await readTags();
@@ -334,12 +388,18 @@ async function serveStatic(req, res, url) {
   let filePath;
   if (url.pathname.startsWith("/covers/")) {
     filePath = path.join(COVER_DIR, decodeURIComponent(url.pathname.slice("/covers/".length)));
+  } else if (url.pathname.startsWith("/image/")) {
+    filePath = path.join(IMAGE_DIR, decodeURIComponent(url.pathname.slice("/image/".length)));
   } else {
     const requested = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname.slice(1));
     filePath = path.join(PUBLIC_DIR, requested);
   }
 
-  const root = url.pathname.startsWith("/covers/") ? COVER_DIR : PUBLIC_DIR;
+  const root = url.pathname.startsWith("/covers/")
+    ? COVER_DIR
+    : url.pathname.startsWith("/image/")
+      ? IMAGE_DIR
+      : PUBLIC_DIR;
   if (!path.resolve(filePath).startsWith(path.resolve(root))) {
     return send(res, 403, "Forbidden", "text/plain; charset=utf-8");
   }
