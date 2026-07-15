@@ -37,7 +37,6 @@ jobs:
         shell: pwsh
         run: |
           $package = Get-Content package.json -Raw | ConvertFrom-Json
-          "version=$($package.version)" >> $env:GITHUB_OUTPUT
           "productName=$($package.build.productName)" >> $env:GITHUB_OUTPUT
 
       - name: Create GitHub Release
@@ -45,7 +44,7 @@ jobs:
         with:
           tag_name: auto-build-${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          name: ${{ steps.package.outputs.productName }} ${{ steps.package.outputs.version }} build ${{ github.run_number }}
+          name: ${{ steps.package.outputs.productName }} build ${{ github.run_number }}
           body: |
             Automated build from `${{ github.ref_name }}`.
 

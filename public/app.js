@@ -28,7 +28,14 @@ const messageDialog = $("#messageDialog");
 const emptyState = $("#emptyState");
 const content = $(".content");
 const scrollTopButton = $("#scrollTopButton");
+const colorPopover = $("#colorPopover");
+const colorField = $("#colorField");
+const colorHueRange = $("#colorHueRange");
+const colorPopoverPreview = $("#colorPopoverPreview");
 let dragDepth = 0;
+let activeColorInputId = null;
+let activeHsv = { h: 0, s: 0, v: 1 };
+let isPickingColorField = false;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -112,6 +119,92 @@ function applyViewSettings(settings = DEFAULT_VIEW_SETTINGS) {
   $("#cardSizeSelect").value = settings.cardSize;
   document.documentElement.style.setProperty("--cover-ratio", settings.coverRatio);
   document.documentElement.style.setProperty("--card-min", settings.cardSize);
+  syncCustomSelects();
+}
+
+function closeCustomSelects(except = null) {
+  document.querySelectorAll(".select-menu").forEach((menu) => {
+    if (menu === except) return;
+    menu.hidden = true;
+    menu.previousElementSibling?.setAttribute("aria-expanded", "false");
+  });
+}
+
+function syncCustomSelect(select) {
+  const field = select.closest(".select-field");
+  const trigger = field?.querySelector(".select-trigger");
+  const menu = field?.querySelector(".select-menu");
+  if (!field || !trigger || !menu) return;
+
+  const selectedOption = select.selectedOptions[0] || select.options[0];
+  trigger.textContent = selectedOption?.textContent || "";
+  [...menu.children].forEach((button) => {
+    const selected = button.dataset.value === select.value;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-selected", String(selected));
+  });
+}
+
+function syncCustomSelects() {
+  document.querySelectorAll(".select-field select").forEach(syncCustomSelect);
+}
+
+function initCustomSelects() {
+  document.querySelectorAll(".select-field select").forEach((select) => {
+    if (select.dataset.customSelectReady) return;
+    select.dataset.customSelectReady = "true";
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "select-trigger";
+    trigger.setAttribute("aria-haspopup", "listbox");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.title = select.title || "";
+
+    const menu = document.createElement("div");
+    menu.className = "select-menu";
+    menu.setAttribute("role", "listbox");
+    menu.hidden = true;
+
+    [...select.options].forEach((option) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "select-option";
+      button.dataset.value = option.value;
+      button.setAttribute("role", "option");
+      button.textContent = option.textContent;
+      button.addEventListener("click", () => {
+        select.value = option.value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        closeCustomSelects();
+        syncCustomSelect(select);
+      });
+      menu.append(button);
+    });
+
+    trigger.addEventListener("click", () => {
+      const willOpen = menu.hidden;
+      closeCustomSelects(menu);
+      menu.hidden = !willOpen;
+      trigger.setAttribute("aria-expanded", String(willOpen));
+    });
+
+    trigger.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeCustomSelects();
+      }
+      if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        closeCustomSelects(menu);
+        menu.hidden = false;
+        trigger.setAttribute("aria-expanded", "true");
+        menu.querySelector(".is-selected")?.focus();
+      }
+    });
+
+    select.after(trigger, menu);
+    syncCustomSelect(select);
+  });
 }
 
 function getFilteredItems() {
@@ -220,7 +313,6 @@ function setCoverMode(mode) {
   document.querySelector(`input[name="coverMode"][value="${mode}"]`).checked = true;
   $("#coverUrlGroup").hidden = mode !== "url";
   $("#coverPathGroup").hidden = mode !== "local";
-  $("#copyCoverButton").hidden = mode !== "local";
 }
 
 function openDialog(item = null) {
@@ -255,9 +347,10 @@ function updateTagPreview() {
   const preview = $("#tagPreview");
   const name = $("#tagNameInput").value.trim() || "Tag";
   preview.textContent = name;
-  preview.style.backgroundColor = $("#tagBgInput").value;
-  preview.style.color = $("#tagTextInput").value;
-  preview.style.borderColor = $("#tagBorderInput").value;
+  preview.style.backgroundColor = normalizeHexColor($("#tagBgInput").value, DEFAULT_TAG_COLORS.backgroundColor);
+  preview.style.color = normalizeHexColor($("#tagTextInput").value, DEFAULT_TAG_COLORS.textColor);
+  preview.style.borderColor = normalizeHexColor($("#tagBorderInput").value, DEFAULT_TAG_COLORS.borderColor);
+  syncColorSwatches();
 }
 
 function randomHex() {
@@ -265,7 +358,7 @@ function randomHex() {
 }
 
 function updateScrollTopButton() {
-  scrollTopButton.classList.toggle("visible", content.scrollTop > 240);
+  scrollTopButton.classList.toggle("visible", content.scrollTop > 0);
 }
 
 function filePathFromDrop(file) {
@@ -279,7 +372,169 @@ function openDialogWithLocalPath(localPath) {
   $("#titleInput").value = localPath.split(/[\\/]/).filter(Boolean).pop() || "";
 }
 
+function normalizeHexColor(value, fallback) {
+  const trimmed = String(value || "").trim();
+  if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed.toUpperCase();
+  if (/^[0-9a-f]{6}$/i.test(trimmed)) return `#${trimmed.toUpperCase()}`;
+  return fallback;
+}
+
+function hexToRgb(hex) {
+  const clean = normalizeHexColor(hex, "#000000").slice(1);
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16)
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  return `#${[r, g, b].map((value) => Math.round(value).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+function rgbToHsv({ r, g, b }) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  let h = 0;
+
+  if (delta) {
+    if (max === r) h = ((g - b) / delta) % 6;
+    else if (max === g) h = (b - r) / delta + 2;
+    else h = (r - g) / delta + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+
+  return {
+    h,
+    s: max === 0 ? 0 : delta / max,
+    v: max
+  };
+}
+
+function hsvToRgb({ h, s, v }) {
+  const c = v * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = v - c;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+
+  return {
+    r: (r + m) * 255,
+    g: (g + m) * 255,
+    b: (b + m) * 255
+  };
+}
+
+function drawColorField() {
+  const context = colorField.getContext("2d");
+  const width = colorField.width;
+  const height = colorField.height;
+  const hueColor = rgbToHex(hsvToRgb({ h: activeHsv.h, s: 1, v: 1 }));
+
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = hueColor;
+  context.fillRect(0, 0, width, height);
+
+  const whiteGradient = context.createLinearGradient(0, 0, width, 0);
+  whiteGradient.addColorStop(0, "#fff");
+  whiteGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+  context.fillStyle = whiteGradient;
+  context.fillRect(0, 0, width, height);
+
+  const blackGradient = context.createLinearGradient(0, 0, 0, height);
+  blackGradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+  blackGradient.addColorStop(1, "#000");
+  context.fillStyle = blackGradient;
+  context.fillRect(0, 0, width, height);
+
+  const markerX = activeHsv.s * width;
+  const markerY = (1 - activeHsv.v) * height;
+  context.beginPath();
+  context.arc(markerX, markerY, 6, 0, Math.PI * 2);
+  context.lineWidth = 2;
+  context.strokeStyle = "#ffffff";
+  context.stroke();
+  context.beginPath();
+  context.arc(markerX, markerY, 8, 0, Math.PI * 2);
+  context.strokeStyle = "rgba(0, 0, 0, 0.75)";
+  context.stroke();
+}
+
+function setColorFromFieldEvent(event) {
+  if (!activeColorInputId) return;
+  const rect = colorField.getBoundingClientRect();
+  const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+  const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+
+  activeHsv.s = x / rect.width;
+  activeHsv.v = 1 - y / rect.height;
+  setColorValue(activeColorInputId, rgbToHex(hsvToRgb(activeHsv)));
+  drawColorField();
+}
+
+function syncColorSwatches() {
+  document.querySelectorAll(".color-swatch-button").forEach((button) => {
+    const input = $(`#${button.dataset.colorTarget}`);
+    button.style.backgroundColor = normalizeHexColor(input.value, input.defaultValue || DEFAULT_TAG_COLORS.backgroundColor);
+  });
+  if (activeColorInputId) {
+    const input = $(`#${activeColorInputId}`);
+    colorPopoverPreview.style.backgroundColor = normalizeHexColor(input.value, input.defaultValue || DEFAULT_TAG_COLORS.backgroundColor);
+  }
+}
+
+function setColorValue(targetId, value) {
+  const input = $(`#${targetId}`);
+  input.value = normalizeHexColor(value, input.defaultValue || DEFAULT_TAG_COLORS.backgroundColor);
+  syncColorSwatches();
+  updateTagPreview();
+}
+
+function closeColorPopover() {
+  colorPopover.hidden = true;
+  activeColorInputId = null;
+}
+
+function openColorPopover(targetId, anchor) {
+  activeColorInputId = targetId;
+  const input = $(`#${targetId}`);
+  activeHsv = rgbToHsv(hexToRgb(input.value || input.defaultValue));
+  colorHueRange.value = Math.round(activeHsv.h);
+  colorPopover.hidden = false;
+
+  const rect = anchor.getBoundingClientRect();
+  const dialogRect = tagDialog.getBoundingClientRect();
+  const left = rect.left - dialogRect.left;
+  const top = rect.bottom - dialogRect.top + 8;
+  colorPopover.style.left = `${Math.max(12, Math.min(left, dialogRect.width - colorPopover.offsetWidth - 12))}px`;
+  colorPopover.style.top = `${Math.max(12, Math.min(top, dialogRect.height - colorPopover.offsetHeight - 12))}px`;
+  drawColorField();
+}
+
 async function pickScreenColor(targetId) {
+  if (window.itemManager?.pickScreenColor) {
+    try {
+      const color = await window.itemManager.pickScreenColor();
+      setColorValue(targetId, color);
+    } catch (error) {
+      if (error.message !== "Color picking canceled.") await notify(error.message || "取色失败。");
+    }
+    return;
+  }
+
   if (!window.EyeDropper) {
     await notify("当前运行环境不支持屏幕取色，请使用颜色输入框选择颜色。");
     return;
@@ -287,9 +542,7 @@ async function pickScreenColor(targetId) {
 
   try {
     const result = await new EyeDropper().open();
-    const input = $(`#${targetId}`);
-    input.value = result.sRGBHex;
-    updateTagPreview();
+    setColorValue(targetId, result.sRGBHex);
   } catch (error) {
     if (error.name !== "AbortError") await notify(error.message || "取色失败。");
   }
@@ -339,6 +592,9 @@ $("#coverRatioSelect").addEventListener("change", () => {
 $("#cardSizeSelect").addEventListener("change", () => {
   applyViewSettings({ coverRatio: $("#coverRatioSelect").value, cardSize: $("#cardSizeSelect").value });
   saveViewSettings().catch((error) => notify(error.message));
+});
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".select-field")) closeCustomSelects();
 });
 $("#pickFolderButton").addEventListener("click", () => pickPath("folder"));
 $("#pickFileButton").addEventListener("click", () => pickPath("file"));
@@ -408,6 +664,38 @@ document.querySelectorAll(".eyedropper-button").forEach((button) => {
   button.addEventListener("click", () => pickScreenColor(button.dataset.colorTarget));
 });
 
+document.querySelectorAll(".color-swatch-button").forEach((button) => {
+  button.addEventListener("click", () => openColorPopover(button.dataset.colorTarget, button));
+});
+
+$("#closeColorPopoverButton").addEventListener("click", closeColorPopover);
+
+colorField.addEventListener("pointerdown", (event) => {
+  isPickingColorField = true;
+  colorField.setPointerCapture(event.pointerId);
+  setColorFromFieldEvent(event);
+});
+
+colorField.addEventListener("pointermove", (event) => {
+  if (isPickingColorField) setColorFromFieldEvent(event);
+});
+
+colorField.addEventListener("pointerup", (event) => {
+  isPickingColorField = false;
+  colorField.releasePointerCapture(event.pointerId);
+});
+
+colorHueRange.addEventListener("input", () => {
+  if (!activeColorInputId) return;
+  activeHsv.h = Number(colorHueRange.value);
+  setColorValue(activeColorInputId, rgbToHex(hsvToRgb(activeHsv)));
+  drawColorField();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !colorPopover.hidden) closeColorPopover();
+});
+
 window.addEventListener("dragenter", (event) => {
   event.preventDefault();
   dragDepth += 1;
@@ -448,9 +736,9 @@ tagForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const payload = {
     name: $("#tagNameInput").value,
-    backgroundColor: $("#tagBgInput").value,
-    textColor: $("#tagTextInput").value,
-    borderColor: $("#tagBorderInput").value
+    backgroundColor: normalizeHexColor($("#tagBgInput").value, DEFAULT_TAG_COLORS.backgroundColor),
+    textColor: normalizeHexColor($("#tagTextInput").value, DEFAULT_TAG_COLORS.textColor),
+    borderColor: normalizeHexColor($("#tagBorderInput").value, DEFAULT_TAG_COLORS.borderColor)
   };
   if (!payload.name.trim()) {
     await notify("请填写标签名称。");
@@ -477,23 +765,6 @@ $("#deleteTagButton").addEventListener("click", async () => {
   state.selectedTags.delete($("#tagNameInput").value);
   await loadData();
   selectTag(state.tags[0] || null);
-});
-
-$("#copyCoverButton").addEventListener("click", async () => {
-  const source = $("#coverPathInput").value.trim();
-  if (!source) {
-    await notify("请先填写本地图片路径。");
-    return;
-  }
-  try {
-    const result = await api("/api/copy-cover", {
-      method: "POST",
-      body: JSON.stringify({ coverPath: source })
-    });
-    $("#coverPathInput").value = result.coverPath;
-  } catch (error) {
-    await notify(error.message);
-  }
 });
 
 form.addEventListener("submit", async (event) => {
@@ -565,6 +836,7 @@ grid.addEventListener("click", async (event) => {
   }
 });
 
+initCustomSelects();
 applyViewSettings(loadLocalViewSettings());
 updateScrollTopButton();
 loadData().catch((error) => {

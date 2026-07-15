@@ -10,7 +10,7 @@
     <main class="shell">
       <aside class="sidebar">
         <div class="brand">
-          <img class="brand-mark" src="/image/Icon.png" alt="" />
+          <img class="brand-mark" src="/image/Icon.png" alt="" draggable="false" />
           <div>
             <h1>Item Manager</h1>
             <p>Local Library</p>
@@ -43,25 +43,25 @@
         <header class="toolbar">
           <div>
             <h2>收藏库</h2>
-            <p>链接、路径、封面和备注都保存在此项目文件夹中。</p>
+            <p>链接、路径、封面路径和备注都保存在此项目文件夹中。</p>
           </div>
           <div class="toolbar-controls">
-            <label>
+            <div class="select-field">
               <span>栏目大小</span>
               <select id="cardSizeSelect" aria-label="栏目大小" title="调整卡片栏目大小">
-                <option value="220px">小</option>
-                <option value="280px">中</option>
-                <option value="360px">大</option>
+                <option value="220px">紧凑</option>
+                <option value="280px">标准</option>
+                <option value="360px">宽松</option>
               </select>
-            </label>
-            <label>
+            </div>
+            <div class="select-field">
               <span>封面比例</span>
               <select id="coverRatioSelect" aria-label="封面比例" title="调整封面显示比例">
-                <option value="1 / 1">1:1</option>
-                <option value="4 / 3">4:3</option>
-                <option value="16 / 9">16:9</option>
+                <option value="1 / 1">方形 1:1</option>
+                <option value="4 / 3">相册 4:3</option>
+                <option value="16 / 9">宽屏 16:9</option>
               </select>
-            </label>
+            </div>
           </div>
         </header>
 
@@ -116,7 +116,7 @@
           <legend>封面</legend>
           <div class="segmented">
             <label title="使用远程图片链接作为封面"><input type="radio" name="coverMode" value="url" checked /> 加载网页链接</label>
-            <label title="使用本机图片作为封面"><input type="radio" name="coverMode" value="local" /> 使用本地图片</label>
+            <label title="使用本机图片路径作为封面"><input type="radio" name="coverMode" value="local" /> 使用本地图片</label>
           </div>
           <label id="coverUrlGroup">
             <span>封面 URL</span>
@@ -124,9 +124,8 @@
           </label>
           <label id="coverPathGroup" hidden>
             <span>本地图片路径</span>
-            <input id="coverPathInput" placeholder="F:\Pictures\cover.png" title="输入本地封面图片路径" />
+            <input id="coverPathInput" placeholder="F:\Pictures\cover.png" title="仅保存本地封面图片路径" />
           </label>
-          <button type="button" class="secondary" id="copyCoverButton" title="把本地封面复制到项目数据目录">复制本地封面到项目</button>
         </fieldset>
 
         <label>
@@ -166,21 +165,24 @@
               <label>
                 <span>背景颜色</span>
                 <span class="color-control">
-                  <input id="tagBgInput" type="color" value="#202633" title="选择标签背景色" />
+                  <button type="button" class="color-swatch-button" data-color-target="tagBgInput" title="打开背景颜色调色盘"></button>
+                  <input type="hidden" id="tagBgInput" value="#202633" />
                   <button type="button" class="mini-button eyedropper-button" data-color-target="tagBgInput" title="从屏幕取背景颜色">取色</button>
                 </span>
               </label>
               <label>
                 <span>文字颜色</span>
                 <span class="color-control">
-                  <input id="tagTextInput" type="color" value="#bfd0df" title="选择标签文字颜色" />
+                  <button type="button" class="color-swatch-button" data-color-target="tagTextInput" title="打开文字颜色调色盘"></button>
+                  <input type="hidden" id="tagTextInput" value="#bfd0df" />
                   <button type="button" class="mini-button eyedropper-button" data-color-target="tagTextInput" title="从屏幕取文字颜色">取色</button>
                 </span>
               </label>
               <label>
                 <span>边框颜色</span>
                 <span class="color-control">
-                  <input id="tagBorderInput" type="color" value="#2a3140" title="选择标签边框颜色" />
+                  <button type="button" class="color-swatch-button" data-color-target="tagBorderInput" title="打开边框颜色调色盘"></button>
+                  <input type="hidden" id="tagBorderInput" value="#2a3140" />
                   <button type="button" class="mini-button eyedropper-button" data-color-target="tagBorderInput" title="从屏幕取边框颜色">取色</button>
                 </span>
               </label>
@@ -198,6 +200,17 @@
               </div>
             </div>
           </section>
+        </div>
+        <div class="color-popover" id="colorPopover" hidden>
+          <div class="color-popover-head">
+            <span>调色盘</span>
+            <button type="button" class="icon-button" id="closeColorPopoverButton" aria-label="关闭调色盘" title="关闭调色盘">×</button>
+          </div>
+          <canvas class="color-field" id="colorField" width="260" height="156" aria-label="颜色区域"></canvas>
+          <div class="color-popover-controls">
+            <span class="color-popover-swatch" id="colorPopoverPreview" title="当前颜色"></span>
+            <input id="colorHueRange" class="hue-slider" type="range" min="0" max="360" value="0" title="调整色相" />
+          </div>
         </div>
       </form>
     </dialog>

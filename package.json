@@ -24,6 +24,7 @@
   "build": {
     "appId": "com.hrenact.itemmanager",
     "productName": "Item Manager",
+    "electronDist": "node_modules/electron/dist",
     "afterPack": "build/after-pack.js",
     "electronLanguages": [
       "en-US",

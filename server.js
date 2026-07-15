@@ -10,7 +10,6 @@ const ROOT = __dirname;
 const DATA_DIR = path.resolve(process.env.ITEM_MANAGER_DATA_DIR || path.join(ROOT, "data"));
 const PUBLIC_DIR = path.join(ROOT, "public");
 const IMAGE_DIR = path.join(ROOT, "image");
-const COVER_DIR = path.join(DATA_DIR, "covers");
 const DB_FILE = path.join(DATA_DIR, "items.json");
 const TAGS_FILE = path.join(DATA_DIR, "tags.json");
 const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
@@ -46,7 +45,7 @@ const MIME = {
 };
 
 async function ensureStore() {
-  await fsp.mkdir(COVER_DIR, { recursive: true });
+  await fsp.mkdir(DATA_DIR, { recursive: true });
   try {
     await fsp.access(DB_FILE);
   } catch {
@@ -239,17 +238,6 @@ async function pickLocalPath(kind) {
   );
 }
 
-async function copyCover(sourcePath) {
-  const normalized = path.normalize(String(sourcePath || ""));
-  const stat = await fsp.stat(normalized);
-  if (!stat.isFile()) throw new Error("Cover path is not a file.");
-  const ext = path.extname(normalized).toLowerCase() || ".img";
-  const name = `${crypto.randomUUID()}${ext}`;
-  const dest = path.join(COVER_DIR, name);
-  await fsp.copyFile(normalized, dest);
-  return `/covers/${name}`;
-}
-
 async function handleApi(req, res, url) {
   try {
     if (url.pathname === "/api/items" && req.method === "GET") {
@@ -373,11 +361,6 @@ async function handleApi(req, res, url) {
       return send(res, 200, { localPath });
     }
 
-    if (url.pathname === "/api/copy-cover" && req.method === "POST") {
-      const { coverPath } = await readJson(req);
-      return send(res, 200, { coverPath: await copyCover(coverPath) });
-    }
-
     return send(res, 404, { error: "Not found." });
   } catch (error) {
     return send(res, 500, { error: error.message || "Server error." });
@@ -386,18 +369,14 @@ async function handleApi(req, res, url) {
 
 async function serveStatic(req, res, url) {
   let filePath;
-  if (url.pathname.startsWith("/covers/")) {
-    filePath = path.join(COVER_DIR, decodeURIComponent(url.pathname.slice("/covers/".length)));
-  } else if (url.pathname.startsWith("/image/")) {
+  if (url.pathname.startsWith("/image/")) {
     filePath = path.join(IMAGE_DIR, decodeURIComponent(url.pathname.slice("/image/".length)));
   } else {
     const requested = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname.slice(1));
     filePath = path.join(PUBLIC_DIR, requested);
   }
 
-  const root = url.pathname.startsWith("/covers/")
-    ? COVER_DIR
-    : url.pathname.startsWith("/image/")
+  const root = url.pathname.startsWith("/image/")
       ? IMAGE_DIR
       : PUBLIC_DIR;
   if (!path.resolve(filePath).startsWith(path.resolve(root))) {
