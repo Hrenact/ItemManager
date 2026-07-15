@@ -243,6 +243,22 @@ select:focus {
   min-width: 0;
 }
 
+.content.drag-over::after {
+  content: "松开以新建条目并填入本地路径";
+  position: fixed;
+  inset: 18px;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(89, 195, 195, 0.8);
+  border-radius: 8px;
+  background: rgba(13, 16, 23, 0.72);
+  color: var(--text);
+  font-weight: 700;
+  pointer-events: none;
+  animation: fade-up 140ms var(--ease-out) both;
+}
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -442,9 +458,10 @@ select:focus {
 }
 
 .scroll-top {
-  position: sticky;
-  left: calc(100% - 48px);
-  bottom: 18px;
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 10;
   display: none;
   place-items: center;
   width: 42px;
@@ -720,9 +737,19 @@ legend {
   gap: 12px;
 }
 
+.color-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
 input[type="color"] {
   height: 42px;
   padding: 4px;
+}
+
+.eyedropper-button {
+  min-height: 42px;
 }
 
 .tag-preview-row {

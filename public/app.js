@@ -28,6 +28,7 @@ const messageDialog = $("#messageDialog");
 const emptyState = $("#emptyState");
 const content = $(".content");
 const scrollTopButton = $("#scrollTopButton");
+let dragDepth = 0;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -263,6 +264,37 @@ function randomHex() {
   return `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0")}`;
 }
 
+function updateScrollTopButton() {
+  scrollTopButton.classList.toggle("visible", content.scrollTop > 240);
+}
+
+function filePathFromDrop(file) {
+  if (window.itemManager?.getPathForFile) return window.itemManager.getPathForFile(file);
+  return file.path || "";
+}
+
+function openDialogWithLocalPath(localPath) {
+  openDialog();
+  $("#pathInput").value = localPath;
+  $("#titleInput").value = localPath.split(/[\\/]/).filter(Boolean).pop() || "";
+}
+
+async function pickScreenColor(targetId) {
+  if (!window.EyeDropper) {
+    await notify("当前运行环境不支持屏幕取色，请使用颜色输入框选择颜色。");
+    return;
+  }
+
+  try {
+    const result = await new EyeDropper().open();
+    const input = $(`#${targetId}`);
+    input.value = result.sRGBHex;
+    updateTagPreview();
+  } catch (error) {
+    if (error.name !== "AbortError") await notify(error.message || "取色失败。");
+  }
+}
+
 async function pickPath(kind) {
   try {
     const result = await api("/api/pick-path", {
@@ -296,9 +328,7 @@ $("#closeDialogButton").addEventListener("click", () => dialog.close());
 $("#closeTagDialogButton").addEventListener("click", () => tagDialog.close());
 $("#cancelButton").addEventListener("click", () => dialog.close());
 $("#searchInput").addEventListener("input", renderItems);
-content.addEventListener("scroll", () => {
-  scrollTopButton.classList.toggle("visible", content.scrollTop > 240);
-});
+content.addEventListener("scroll", updateScrollTopButton);
 scrollTopButton.addEventListener("click", () => {
   content.scrollTo({ top: 0, behavior: "smooth" });
 });
@@ -372,6 +402,46 @@ $("#randomTagColorsButton").addEventListener("click", () => {
   $("#tagTextInput").value = randomHex();
   $("#tagBorderInput").value = randomHex();
   updateTagPreview();
+});
+
+document.querySelectorAll(".eyedropper-button").forEach((button) => {
+  button.addEventListener("click", () => pickScreenColor(button.dataset.colorTarget));
+});
+
+window.addEventListener("dragenter", (event) => {
+  event.preventDefault();
+  dragDepth += 1;
+  content.classList.add("drag-over");
+});
+
+window.addEventListener("dragover", (event) => {
+  event.preventDefault();
+});
+
+window.addEventListener("dragleave", (event) => {
+  event.preventDefault();
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) content.classList.remove("drag-over");
+});
+
+window.addEventListener("drop", async (event) => {
+  event.preventDefault();
+  dragDepth = 0;
+  content.classList.remove("drag-over");
+
+  const files = [...event.dataTransfer.files];
+  if (files.length !== 1) {
+    await notify("请一次只拖入一个文件或文件夹。");
+    return;
+  }
+
+  const localPath = filePathFromDrop(files[0]);
+  if (!localPath) {
+    await notify("无法读取拖入项目的本地路径。");
+    return;
+  }
+
+  openDialogWithLocalPath(localPath);
 });
 
 tagForm.addEventListener("submit", async (event) => {
@@ -496,6 +566,7 @@ grid.addEventListener("click", async (event) => {
 });
 
 applyViewSettings(loadLocalViewSettings());
+updateScrollTopButton();
 loadData().catch((error) => {
   emptyState.classList.add("visible");
   emptyState.innerHTML = `<h3>加载失败</h3><p>${escapeHtml(error.message)}</p>`;

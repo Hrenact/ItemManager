@@ -37,6 +37,7 @@
       "image/**/*",
       "server.js",
       "electron-main.js",
+      "preload.js",
       "package.json"
     ],
     "extraResources": [
