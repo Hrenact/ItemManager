@@ -17,7 +17,20 @@
           </div>
         </div>
 
-        <button class="primary" id="newItemButton" title="添加新的收藏条目">+ 新建条目</button>
+        <div class="sidebar-actions">
+          <button class="primary" id="newItemButton" title="添加新的收藏条目">+ 新建条目</button>
+          <button class="secondary" id="importFolderButton" title="选择文件夹并导入其第一层文件和文件夹">导入</button>
+        </div>
+        <div class="import-progress" id="importProgress" hidden>
+          <div class="import-progress-head">
+            <span id="importProgressTitle">正在导入</span>
+            <strong id="importProgressCount">0</strong>
+          </div>
+          <div class="import-progress-track" aria-hidden="true">
+            <span id="importProgressBar"></span>
+          </div>
+          <p id="importProgressText">准备中...</p>
+        </div>
         <button class="secondary sidebar-action" id="manageTagsButton" title="打开标签管理器">新建/编辑标签</button>
 
         <label class="search">

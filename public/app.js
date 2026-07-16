@@ -36,6 +36,7 @@ let dragDepth = 0;
 let activeColorInputId = null;
 let activeHsv = { h: 0, s: 0, v: 1 };
 let isPickingColorField = false;
+let importPollTimer = null;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -563,17 +564,84 @@ async function pickScreenColor(targetId) {
   }
 }
 
+async function chooseLocalPath(kind) {
+  return window.itemManager?.pickLocalPath
+    ? window.itemManager.pickLocalPath(kind)
+    : api("/api/pick-path", {
+      method: "POST",
+      body: JSON.stringify({ kind })
+    });
+}
+
 async function pickPath(kind, targetSelector = "#pathInput") {
   try {
-    const result = window.itemManager?.pickLocalPath
-      ? await window.itemManager.pickLocalPath(kind)
-      : await api("/api/pick-path", {
-        method: "POST",
-        body: JSON.stringify({ kind })
-      });
+    const result = await chooseLocalPath(kind);
     if (result.localPath) $(targetSelector).value = result.localPath;
   } catch (error) {
     notify(error.message);
+  }
+}
+
+function updateImportProgress(job) {
+  const panel = $("#importProgress");
+  const bar = $("#importProgressBar");
+  const title = $("#importProgressTitle");
+  const count = $("#importProgressCount");
+  const text = $("#importProgressText");
+  const isRunning = job.status === "queued" || job.status === "running";
+  const percent = job.status === "complete"
+    ? 100
+    : job.discovered
+      ? Math.max(5, Math.min(98, Math.round((job.processed / job.discovered) * 100)))
+      : 5;
+
+  panel.hidden = false;
+  bar.style.width = `${percent}%`;
+  bar.classList.toggle("is-active", isRunning);
+  title.textContent = job.status === "complete" ? "导入完成" : job.status === "error" ? "导入失败" : "正在导入";
+  count.textContent = `${job.created}`;
+  text.textContent = job.status === "error"
+    ? job.error || "导入失败。"
+    : job.status === "complete"
+      ? `已创建 ${job.created} 个条目，跳过 ${job.skipped} 个。`
+      : `正在导入第一层：已处理 ${job.processed}/${job.discovered}，${job.currentPath || "准备中..."}`;
+  $("#importFolderButton").disabled = isRunning;
+}
+
+async function pollImportJob(id) {
+  try {
+    const job = await api(`/api/import-folder/${id}`);
+    updateImportProgress(job);
+    if (job.status === "complete") {
+      $("#importFolderButton").disabled = false;
+      await loadData();
+      return;
+    }
+    if (job.status === "error") {
+      $("#importFolderButton").disabled = false;
+      return;
+    }
+    importPollTimer = setTimeout(() => pollImportJob(id), 450);
+  } catch (error) {
+    $("#importFolderButton").disabled = false;
+    await notify(error.message);
+  }
+}
+
+async function importFolder() {
+  try {
+    const result = await chooseLocalPath("folder");
+    if (!result.localPath) return;
+    if (importPollTimer) clearTimeout(importPollTimer);
+    const job = await api("/api/import-folder", {
+      method: "POST",
+      body: JSON.stringify({ rootPath: result.localPath })
+    });
+    updateImportProgress(job);
+    importPollTimer = setTimeout(() => pollImportJob(job.id), 250);
+  } catch (error) {
+    $("#importFolderButton").disabled = false;
+    await notify(error.message);
   }
 }
 
@@ -590,6 +658,7 @@ async function loadData() {
 }
 
 $("#newItemButton").addEventListener("click", () => openDialog());
+$("#importFolderButton").addEventListener("click", importFolder);
 $("#manageTagsButton").addEventListener("click", () => {
   selectTag(state.tags[0] || null);
   tagDialog.showModal();

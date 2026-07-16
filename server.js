@@ -45,6 +45,7 @@ const MIME = {
   ".svg": "image/svg+xml"
 };
 const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]);
+const importJobs = new Map();
 
 async function ensureStore() {
   await fsp.mkdir(DATA_DIR, { recursive: true });
@@ -169,6 +170,115 @@ function hasDuplicateTitle(items, title, currentId = null) {
     item.id !== currentId &&
     String(item.title || "").trim().toLocaleLowerCase() === normalizedTitle
   ));
+}
+
+function titleKey(title) {
+  return String(title || "").trim().toLocaleLowerCase();
+}
+
+function uniqueTitle(baseTitle, usedTitles) {
+  const base = String(baseTitle || "").trim() || "Untitled Item";
+  let title = base;
+  let index = 2;
+  while (usedTitles.has(titleKey(title))) {
+    title = `${base} (${index})`;
+    index += 1;
+  }
+  usedTitles.add(titleKey(title));
+  return title;
+}
+
+function publicImportJob(job) {
+  return {
+    id: job.id,
+    status: job.status,
+    rootPath: job.rootPath,
+    currentPath: job.currentPath,
+    discovered: job.discovered,
+    processed: job.processed,
+    created: job.created,
+    skipped: job.skipped,
+    pending: job.pending,
+    error: job.error,
+    startedAt: job.startedAt,
+    finishedAt: job.finishedAt
+  };
+}
+
+async function runImportJob(job) {
+  job.status = "running";
+  job.startedAt = new Date().toISOString();
+
+  try {
+    const rootStat = await fsp.stat(job.rootPath);
+    if (!rootStat.isDirectory()) throw new Error("Selected path is not a folder.");
+
+    const items = await readItems();
+    const usedTitles = new Set(items.map((item) => titleKey(item.title)));
+    const importedItems = [];
+    job.currentPath = job.rootPath;
+
+    const entries = await fsp.readdir(job.rootPath, { withFileTypes: true });
+    job.discovered = entries.length;
+
+    for (const entry of entries) {
+      const fullPath = path.join(job.rootPath, entry.name);
+      const isDirectory = entry.isDirectory();
+      const isFile = entry.isFile();
+
+      if (!isDirectory && !isFile) {
+        job.skipped += 1;
+        job.processed += 1;
+        continue;
+      }
+
+      importedItems.push(cleanItem({
+        title: uniqueTitle(entry.name, usedTitles),
+        localPath: fullPath,
+        coverMode: "url"
+      }));
+      job.created += 1;
+      job.processed += 1;
+
+      if (job.processed % 100 === 0) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    }
+
+    if (importedItems.length) {
+      items.push(...importedItems);
+      await writeItems(items);
+    }
+
+    job.status = "complete";
+    job.currentPath = "";
+    job.pending = 0;
+    job.finishedAt = new Date().toISOString();
+  } catch (error) {
+    job.status = "error";
+    job.error = error.message || "Import failed.";
+    job.finishedAt = new Date().toISOString();
+  }
+}
+
+function startImportJob(rootPath) {
+  const job = {
+    id: crypto.randomUUID(),
+    status: "queued",
+    rootPath: path.resolve(String(rootPath || "")),
+    currentPath: "",
+    discovered: 0,
+    processed: 0,
+    created: 0,
+    skipped: 0,
+    pending: 0,
+    error: "",
+    startedAt: "",
+    finishedAt: ""
+  };
+  importJobs.set(job.id, job);
+  runImportJob(job);
+  return job;
 }
 
 function cleanTag(input, existing = {}) {
@@ -362,6 +472,19 @@ async function handleApi(req, res, url) {
       if (!localPath) return send(res, 400, { error: "Path is required." });
       if (!revealPath(localPath)) return send(res, 404, { error: "Path does not exist." });
       return send(res, 200, { ok: true });
+    }
+
+    if (url.pathname === "/api/import-folder" && req.method === "POST") {
+      const { rootPath } = await readJson(req);
+      if (!rootPath) return send(res, 400, { error: "Folder path is required." });
+      return send(res, 202, publicImportJob(startImportJob(rootPath)));
+    }
+
+    const importMatch = url.pathname.match(/^\/api\/import-folder\/([^/]+)$/);
+    if (importMatch && req.method === "GET") {
+      const job = importJobs.get(importMatch[1]);
+      if (!job) return send(res, 404, { error: "Import job not found." });
+      return send(res, 200, publicImportJob(job));
     }
 
     if (url.pathname === "/api/pick-path" && req.method === "POST") {
