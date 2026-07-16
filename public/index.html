@@ -122,10 +122,15 @@
             <span>封面 URL</span>
             <input id="coverUrlInput" type="url" placeholder="https://.../cover.jpg" title="输入封面图片 URL" />
           </label>
-          <label id="coverPathGroup" hidden>
-            <span>本地图片路径</span>
+          <div class="field" id="coverPathGroup" hidden>
+            <div class="label-row">
+              本地图片路径
+              <span class="inline-actions">
+                <button type="button" class="mini-button" id="pickCoverImageButton" title="从本机选择一张封面图片">选择图片</button>
+              </span>
+            </div>
             <input id="coverPathInput" placeholder="F:\Pictures\cover.png" title="仅保存本地封面图片路径" />
-          </label>
+          </div>
         </fieldset>
 
         <label>

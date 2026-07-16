@@ -3,6 +3,7 @@ const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
+const { fileURLToPath } = require("url");
 const { spawn, execFile } = require("child_process");
 
 const ROOT = __dirname;
@@ -43,6 +44,7 @@ const MIME = {
   ".gif": "image/gif",
   ".svg": "image/svg+xml"
 };
+const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]);
 
 async function ensureStore() {
   await fsp.mkdir(DATA_DIR, { recursive: true });
@@ -132,6 +134,13 @@ function send(res, status, body, type = "application/json; charset=utf-8") {
     "Content-Length": Buffer.byteLength(payload)
   });
   res.end(payload);
+}
+
+function localImagePathFromQuery(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^file:\/\//i.test(raw)) return fileURLToPath(raw);
+  return path.resolve(raw);
 }
 
 function cleanItem(input, existing = {}) {
@@ -231,7 +240,10 @@ async function pickLocalPath(kind) {
   return runPowerShell(
     "Add-Type -AssemblyName System.Windows.Forms; " +
     "$d = New-Object System.Windows.Forms.OpenFileDialog; " +
-    "$d.Title = '选择本地文件'; " +
+    `$d.Title = '${kind === "image" ? "选择封面图片" : "选择本地文件"}'; ` +
+    (kind === "image"
+      ? "$d.Filter = '图片文件|*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg|所有文件|*.*'; "
+      : "") +
     "$d.CheckFileExists = $true; " +
     "$d.Multiselect = $false; " +
     "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $d.FileName }"
@@ -354,8 +366,8 @@ async function handleApi(req, res, url) {
 
     if (url.pathname === "/api/pick-path" && req.method === "POST") {
       const { kind } = await readJson(req);
-      if (kind !== "file" && kind !== "folder") {
-        return send(res, 400, { error: "Picker kind must be file or folder." });
+      if (kind !== "file" && kind !== "folder" && kind !== "image") {
+        return send(res, 400, { error: "Picker kind must be file, folder, or image." });
       }
       const localPath = await pickLocalPath(kind);
       return send(res, 200, { localPath });
@@ -392,10 +404,41 @@ async function serveStatic(req, res, url) {
   }
 }
 
+async function serveLocalCover(req, res, url) {
+  let filePath;
+  try {
+    filePath = localImagePathFromQuery(url.searchParams.get("path"));
+  } catch {
+    return send(res, 400, "Invalid local image path.", "text/plain; charset=utf-8");
+  }
+
+  if (!filePath) return send(res, 400, "Local image path is required.", "text/plain; charset=utf-8");
+
+  const type = MIME[path.extname(filePath).toLowerCase()];
+  if (!IMAGE_MIME_TYPES.has(type)) {
+    return send(res, 415, "Unsupported image type.", "text/plain; charset=utf-8");
+  }
+
+  try {
+    const stat = await fsp.stat(filePath);
+    if (!stat.isFile()) return send(res, 404, "Not found", "text/plain; charset=utf-8");
+    const data = await fsp.readFile(filePath);
+    res.writeHead(200, {
+      "Content-Type": type,
+      "Content-Length": data.length,
+      "Cache-Control": "no-store"
+    });
+    res.end(data);
+  } catch {
+    send(res, 404, "Not found", "text/plain; charset=utf-8");
+  }
+}
+
 function createAppServer() {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (url.pathname.startsWith("/api/")) return handleApi(req, res, url);
+    if (url.pathname === "/local-cover") return serveLocalCover(req, res, url);
     return serveStatic(req, res, url);
   });
 

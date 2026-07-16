@@ -91,7 +91,10 @@ function tagStyle(name) {
 function coverFor(item) {
   const source = item.coverMode === "url" ? item.coverUrl : item.coverPath;
   if (!source) return `<div class="cover cover-placeholder" aria-label="未设置封面">?</div>`;
-  return `<img class="cover" src="${escapeHtml(source)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), { className: 'cover cover-placeholder', textContent: '?' }))" />`;
+  const imageSource = item.coverMode === "url"
+    ? source
+    : `/local-cover?path=${encodeURIComponent(source)}`;
+  return `<img class="cover" src="${escapeHtml(imageSource)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), { className: 'cover cover-placeholder', textContent: '?' }))" />`;
 }
 
 function loadLocalViewSettings() {
@@ -361,9 +364,21 @@ function updateScrollTopButton() {
   scrollTopButton.classList.toggle("visible", content.scrollTop > 0);
 }
 
+function isAnyDialogOpen() {
+  return [...document.querySelectorAll("dialog")].some((entry) => entry.open);
+}
+
+function canDropToMainView() {
+  return !isAnyDialogOpen();
+}
+
 function filePathFromDrop(file) {
   if (window.itemManager?.getPathForFile) return window.itemManager.getPathForFile(file);
   return file.path || "";
+}
+
+function isImagePath(localPath) {
+  return /\.(png|jpe?g|webp|gif|svg)$/i.test(String(localPath || "").split(/[?#]/)[0]);
 }
 
 function openDialogWithLocalPath(localPath) {
@@ -548,13 +563,13 @@ async function pickScreenColor(targetId) {
   }
 }
 
-async function pickPath(kind) {
+async function pickPath(kind, targetSelector = "#pathInput") {
   try {
     const result = await api("/api/pick-path", {
       method: "POST",
       body: JSON.stringify({ kind })
     });
-    if (result.localPath) $("#pathInput").value = result.localPath;
+    if (result.localPath) $(targetSelector).value = result.localPath;
   } catch (error) {
     notify(error.message);
   }
@@ -598,6 +613,7 @@ document.addEventListener("click", (event) => {
 });
 $("#pickFolderButton").addEventListener("click", () => pickPath("folder"));
 $("#pickFileButton").addEventListener("click", () => pickPath("file"));
+$("#pickCoverImageButton").addEventListener("click", () => pickPath("image", "#coverPathInput"));
 $("#clearTagFiltersButton").addEventListener("click", () => {
   state.activeTagFilters.clear();
   renderSidebarTags();
@@ -696,8 +712,56 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !colorPopover.hidden) closeColorPopover();
 });
 
+$("#coverPathGroup").addEventListener("dragenter", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  $("#coverPathGroup").classList.add("drag-over");
+});
+
+$("#coverPathGroup").addEventListener("dragover", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+});
+
+$("#coverPathGroup").addEventListener("dragleave", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  if (!$("#coverPathGroup").contains(event.relatedTarget)) {
+    $("#coverPathGroup").classList.remove("drag-over");
+  }
+});
+
+$("#coverPathGroup").addEventListener("drop", async (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  $("#coverPathGroup").classList.remove("drag-over");
+
+  const files = [...event.dataTransfer.files];
+  if (files.length !== 1) {
+    await notify("请一次只拖入一张封面图片。");
+    return;
+  }
+
+  const localPath = filePathFromDrop(files[0]);
+  if (!localPath) {
+    await notify("无法读取拖入图片的本地路径。");
+    return;
+  }
+  if (!isImagePath(localPath)) {
+    await notify("请拖入 png、jpg、webp、gif 或 svg 图片。");
+    return;
+  }
+
+  $("#coverPathInput").value = localPath;
+});
+
 window.addEventListener("dragenter", (event) => {
   event.preventDefault();
+  if (!canDropToMainView()) {
+    dragDepth = 0;
+    content.classList.remove("drag-over");
+    return;
+  }
   dragDepth += 1;
   content.classList.add("drag-over");
 });
@@ -708,6 +772,11 @@ window.addEventListener("dragover", (event) => {
 
 window.addEventListener("dragleave", (event) => {
   event.preventDefault();
+  if (!canDropToMainView()) {
+    dragDepth = 0;
+    content.classList.remove("drag-over");
+    return;
+  }
   dragDepth = Math.max(0, dragDepth - 1);
   if (dragDepth === 0) content.classList.remove("drag-over");
 });
@@ -716,6 +785,7 @@ window.addEventListener("drop", async (event) => {
   event.preventDefault();
   dragDepth = 0;
   content.classList.remove("drag-over");
+  if (!canDropToMainView()) return;
 
   const files = [...event.dataTransfer.files];
   if (files.length !== 1) {

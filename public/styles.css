@@ -659,6 +659,12 @@ label,
   gap: 8px;
 }
 
+.field.drag-over {
+  border-radius: 8px;
+  outline: 1px dashed rgba(89, 195, 195, 0.8);
+  outline-offset: 4px;
+}
+
 .field > .label-row,
 label span,
 legend {
