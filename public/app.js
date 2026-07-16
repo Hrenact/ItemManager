@@ -565,10 +565,12 @@ async function pickScreenColor(targetId) {
 
 async function pickPath(kind, targetSelector = "#pathInput") {
   try {
-    const result = await api("/api/pick-path", {
-      method: "POST",
-      body: JSON.stringify({ kind })
-    });
+    const result = window.itemManager?.pickLocalPath
+      ? await window.itemManager.pickLocalPath(kind)
+      : await api("/api/pick-path", {
+        method: "POST",
+        body: JSON.stringify({ kind })
+      });
     if (result.localPath) $(targetSelector).value = result.localPath;
   } catch (error) {
     notify(error.message);

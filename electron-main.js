@@ -168,6 +168,23 @@ function startColorPick() {
 
 ipcMain.handle("pick-screen-color", () => startColorPick());
 
+ipcMain.handle("pick-local-path", async (event, kind) => {
+  if (!["file", "folder", "image"].includes(kind)) {
+    throw new Error("Picker kind must be file, folder, or image.");
+  }
+  const properties = kind === "folder" ? ["openDirectory"] : ["openFile"];
+  const filters = kind === "image"
+    ? [{ name: "图片文件", extensions: ["png", "jpg", "jpeg", "webp", "gif", "svg"] }]
+    : [];
+  const owner = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(owner, {
+    title: kind === "folder" ? "选择本地文件夹" : kind === "image" ? "选择封面图片" : "选择本地文件",
+    properties,
+    filters
+  });
+  return { localPath: result.canceled ? "" : result.filePaths[0] || "" };
+});
+
 ipcMain.on("finish-screen-color-pick", async (_event, point) => {
   if (!colorPick) return;
   const { resolve, reject } = colorPick;

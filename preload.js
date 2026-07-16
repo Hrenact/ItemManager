@@ -4,6 +4,9 @@ contextBridge.exposeInMainWorld("itemManager", {
   getPathForFile(file) {
     return webUtils.getPathForFile(file);
   },
+  pickLocalPath(kind) {
+    return ipcRenderer.invoke("pick-local-path", kind);
+  },
   pickScreenColor() {
     return ipcRenderer.invoke("pick-screen-color");
   },
