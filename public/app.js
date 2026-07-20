@@ -314,9 +314,30 @@ function hasDuplicateTitle(title, currentId = null) {
 }
 
 function setCoverMode(mode) {
-  document.querySelector(`input[name="coverMode"][value="${mode}"]`).checked = true;
+  const select = $("#coverModeSelect");
+  select.value = mode;
+  syncCustomSelect(select);
   $("#coverUrlGroup").hidden = mode !== "url";
   $("#coverPathGroup").hidden = mode !== "local";
+  updateCoverPreview();
+}
+
+function updateCoverPreview() {
+  const mode = new FormData(form).get("coverMode") || "url";
+  const source = (mode === "url" ? $("#coverUrlInput").value : $("#coverPathInput").value).trim();
+  const image = $("#coverPreviewImage");
+  const empty = $("#coverPreviewEmpty");
+
+  if (!source) {
+    image.hidden = true;
+    image.removeAttribute("src");
+    empty.hidden = false;
+    return;
+  }
+
+  image.hidden = false;
+  empty.hidden = true;
+  image.src = mode === "url" ? source : `/local-cover?path=${encodeURIComponent(source)}`;
 }
 
 function openDialog(item = null) {
@@ -576,7 +597,11 @@ async function chooseLocalPath(kind) {
 async function pickPath(kind, targetSelector = "#pathInput") {
   try {
     const result = await chooseLocalPath(kind);
-    if (result.localPath) $(targetSelector).value = result.localPath;
+    if (result.localPath) {
+      const target = $(targetSelector);
+      target.value = result.localPath;
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+    }
   } catch (error) {
     notify(error.message);
   }
@@ -684,7 +709,6 @@ document.addEventListener("click", (event) => {
 });
 $("#pickFolderButton").addEventListener("click", () => pickPath("folder"));
 $("#pickFileButton").addEventListener("click", () => pickPath("file"));
-$("#pickCoverImageButton").addEventListener("click", () => pickPath("image", "#coverPathInput"));
 $("#clearTagFiltersButton").addEventListener("click", () => {
   state.activeTagFilters.clear();
   renderSidebarTags();
@@ -702,8 +726,12 @@ messageDialog.addEventListener("cancel", (event) => {
   resolveMessage(false);
 });
 
-document.querySelectorAll('input[name="coverMode"]').forEach((input) => {
-  input.addEventListener("change", () => setCoverMode(input.value));
+$("#coverModeSelect").addEventListener("change", (event) => setCoverMode(event.target.value));
+$("#coverUrlInput").addEventListener("input", updateCoverPreview);
+$("#coverPathInput").addEventListener("input", updateCoverPreview);
+$("#coverPreviewImage").addEventListener("error", () => {
+  $("#coverPreviewImage").hidden = true;
+  $("#coverPreviewEmpty").hidden = false;
 });
 
 $("#tagPicker").addEventListener("change", (event) => {
@@ -783,29 +811,29 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !colorPopover.hidden) closeColorPopover();
 });
 
-$("#coverPathGroup").addEventListener("dragenter", (event) => {
+$("#coverPreview").addEventListener("dragenter", (event) => {
   event.preventDefault();
   event.stopPropagation();
-  $("#coverPathGroup").classList.add("drag-over");
+  $("#coverPreview").classList.add("drag-over");
 });
 
-$("#coverPathGroup").addEventListener("dragover", (event) => {
+$("#coverPreview").addEventListener("dragover", (event) => {
   event.preventDefault();
   event.stopPropagation();
 });
 
-$("#coverPathGroup").addEventListener("dragleave", (event) => {
+$("#coverPreview").addEventListener("dragleave", (event) => {
   event.preventDefault();
   event.stopPropagation();
-  if (!$("#coverPathGroup").contains(event.relatedTarget)) {
-    $("#coverPathGroup").classList.remove("drag-over");
+  if (!$("#coverPreview").contains(event.relatedTarget)) {
+    $("#coverPreview").classList.remove("drag-over");
   }
 });
 
-$("#coverPathGroup").addEventListener("drop", async (event) => {
+$("#coverPreview").addEventListener("drop", async (event) => {
   event.preventDefault();
   event.stopPropagation();
-  $("#coverPathGroup").classList.remove("drag-over");
+  $("#coverPreview").classList.remove("drag-over");
 
   const files = [...event.dataTransfer.files];
   if (files.length !== 1) {
@@ -824,6 +852,7 @@ $("#coverPathGroup").addEventListener("drop", async (event) => {
   }
 
   $("#coverPathInput").value = localPath;
+  setCoverMode("local");
 });
 
 window.addEventListener("dragenter", (event) => {

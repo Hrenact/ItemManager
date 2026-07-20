@@ -690,6 +690,7 @@ dialog[open] {
   animation: dialog-in 180ms var(--ease-out) both;
 }
 
+#itemDialog,
 #tagDialog {
   position: relative;
   width: min(860px, calc(100vw - 28px));
@@ -726,8 +727,128 @@ form {
 
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: 14px;
+  row-gap: 16px;
+}
+
+.title-field {
+  grid-column: span 8;
+}
+
+.creator-field {
+  grid-column: span 4;
+}
+
+.url-field,
+.path-field {
+  grid-column: span 6;
+}
+
+.form-grid > label,
+.form-grid > .field,
+.form-grid > .cover-field {
+  gap: 6px;
+}
+
+.form-grid > label > span,
+.form-grid > .field > .label-row,
+.form-grid > .cover-field > .cover-label {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  min-height: 20px;
+  line-height: 20px;
+}
+
+.cover-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.form-grid input,
+.form-grid .select-trigger {
+  height: 44px;
+  min-height: 44px;
+}
+
+.form-grid > .field {
+  position: relative;
+}
+
+.form-grid > .field > .label-row .inline-actions {
+  position: absolute;
+  top: -2px;
+  right: 0;
+}
+
+.path-field .mini-button {
+  min-height: 24px;
+  padding-inline: 8px;
+}
+
+.item-editor-top {
+  display: grid;
+  grid-template-columns: 243px minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.cover-editor-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #0d1017;
+  transition:
+    border-color 150ms var(--ease-standard),
+    background-color 150ms var(--ease-standard),
+    box-shadow 150ms var(--ease-standard),
+    transform 150ms var(--ease-out);
+}
+
+.cover-editor-preview:hover {
+  border-color: rgba(89, 195, 195, 0.5);
+}
+
+.cover-editor-preview.drag-over {
+  border-color: var(--accent);
+  background: rgba(89, 195, 195, 0.08);
+  box-shadow: 0 0 0 3px rgba(89, 195, 195, 0.12);
+  transform: scale(1.015);
+}
+
+.cover-editor-preview img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.cover-preview-empty {
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  padding: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.cover-preview-empty strong {
+  font-size: 58px;
+  font-weight: 700;
+  line-height: 0.95;
+}
+
+.cover-preview-empty small {
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .field,
@@ -735,12 +856,6 @@ label,
 .cover-field {
   display: grid;
   gap: 8px;
-}
-
-.field.drag-over {
-  border-radius: 8px;
-  outline: 1px dashed rgba(89, 195, 195, 0.8);
-  outline-offset: 4px;
 }
 
 .field > .label-row,
@@ -817,47 +932,61 @@ legend {
 }
 
 .cover-field {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 14px;
-}
-
-.segmented {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.segmented label {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
   min-width: 0;
-  min-height: 44px;
-  padding: 10px 12px;
-  color: var(--text);
-  transition:
-    background-color 150ms var(--ease-standard),
-    border-color 150ms var(--ease-standard),
-    transform 150ms var(--ease-out);
+  border: 0;
+  padding: 0;
 }
 
-.segmented label:hover {
-  transform: translateY(-1px);
-  border-color: rgba(89, 195, 195, 0.45);
+.cover-settings {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
 }
 
-.segmented label input {
-  width: auto;
-  margin: 0;
+.cover-mode-field {
+  position: relative;
+  display: grid;
+  gap: 8px;
 }
 
-.segmented label:has(input:checked) {
-  border-color: var(--accent);
-  background: rgba(89, 195, 195, 0.08);
+.cover-mode-field .select-trigger {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cover-settings .field > span {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .item-editor-top {
+    grid-template-columns: 1fr;
+  }
+
+  .cover-editor-preview {
+    width: min(220px, 100%);
+    aspect-ratio: 1 / 1;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .title-field,
+  .creator-field,
+  .url-field,
+  .path-field,
+  .wide {
+    grid-column: 1 / -1;
+  }
+
+  .cover-settings {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dialog-actions > div {

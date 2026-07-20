@@ -96,55 +96,62 @@
 
         <input type="hidden" id="itemId" />
 
-        <div class="form-grid">
-          <label>
-            <span>标题</span>
-            <input id="titleInput" required placeholder="作品或资源名称" title="输入条目标题" />
-          </label>
-          <label>
-            <span>作者 / 商店</span>
-            <input id="creatorInput" placeholder="Creator, Shop, Circle" title="输入作者、商店或来源" />
-          </label>
-          <label>
-            <span>网页链接</span>
-            <input id="urlInput" type="url" placeholder="https://..." title="输入可打开的网页链接" />
-          </label>
-          <div class="field">
-            <div class="label-row">
-              本地路径
-              <span class="inline-actions">
-                <button type="button" class="mini-button" id="pickFolderButton" title="从本机选择一个文件夹">选择文件夹</button>
-                <button type="button" class="mini-button" id="pickFileButton" title="从本机选择一个文件">选择文件</button>
-              </span>
+        <div class="item-editor-top">
+          <div class="cover-editor-preview" id="coverPreview" title="拖入一张图片作为本地封面">
+            <img id="coverPreviewImage" alt="封面预览" draggable="false" hidden />
+            <div class="cover-preview-empty" id="coverPreviewEmpty">
+              <strong>?</strong>
+              <small>拖入图片来快速设置</small>
             </div>
-            <input id="pathInput" placeholder="F:\Downloads\item.zip 或文件夹路径" title="输入或选择本地文件/文件夹路径" />
           </div>
-          <div class="field wide">
-            <span>标签</span>
-            <div class="tag-picker" id="tagPicker"></div>
+
+          <div class="form-grid">
+            <label class="title-field">
+              <span>标题</span>
+              <input id="titleInput" required placeholder="作品或资源名称" title="输入条目标题" />
+            </label>
+            <label class="creator-field">
+              <span>作者</span>
+              <input id="creatorInput" placeholder="Creator" title="输入作者、商店或来源" />
+            </label>
+            <label class="url-field">
+              <span>网页链接</span>
+              <input id="urlInput" type="url" placeholder="https://..." title="输入可打开的网页链接" />
+            </label>
+            <div class="field path-field">
+              <div class="label-row">
+                本地路径
+                <span class="inline-actions">
+                  <button type="button" class="mini-button" id="pickFolderButton" title="从本机选择一个文件夹">选择文件夹</button>
+                  <button type="button" class="mini-button" id="pickFileButton" title="从本机选择一个文件">选择文件</button>
+                </span>
+              </div>
+              <input id="pathInput" placeholder="F:\Downloads\item.zip 或文件夹路径" title="输入或选择本地文件/文件夹路径" />
+            </div>
+            <div class="cover-field wide" role="group" aria-label="封面">
+              <span class="cover-label">封面</span>
+              <div class="cover-settings">
+                <div class="select-field cover-mode-field">
+                  <select id="coverModeSelect" name="coverMode" aria-label="封面来源" title="选择封面图片来源">
+                    <option value="url">加载网页链接</option>
+                    <option value="local">使用本地图片</option>
+                  </select>
+                </div>
+                <label id="coverUrlGroup">
+                  <input id="coverUrlInput" type="url" placeholder="https://.../cover.jpg" title="输入封面图片 URL" />
+                </label>
+                <div class="field" id="coverPathGroup" hidden>
+                  <input id="coverPathInput" placeholder="F:\Pictures\cover.png" title="仅保存本地封面图片路径" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <fieldset class="cover-field">
-          <legend>封面</legend>
-          <div class="segmented">
-            <label title="使用远程图片链接作为封面"><input type="radio" name="coverMode" value="url" checked /> 加载网页链接</label>
-            <label title="使用本机图片路径作为封面"><input type="radio" name="coverMode" value="local" /> 使用本地图片</label>
-          </div>
-          <label id="coverUrlGroup">
-            <span>封面 URL</span>
-            <input id="coverUrlInput" type="url" placeholder="https://.../cover.jpg" title="输入封面图片 URL" />
-          </label>
-          <div class="field" id="coverPathGroup" hidden>
-            <div class="label-row">
-              本地图片路径
-              <span class="inline-actions">
-                <button type="button" class="mini-button" id="pickCoverImageButton" title="从本机选择一张封面图片">选择图片</button>
-              </span>
-            </div>
-            <input id="coverPathInput" placeholder="F:\Pictures\cover.png" title="仅保存本地封面图片路径" />
-          </div>
-        </fieldset>
+        <div class="field tag-field">
+          <span>标签</span>
+          <div class="tag-picker" id="tagPicker"></div>
+        </div>
 
         <label>
           <span>备注</span>
