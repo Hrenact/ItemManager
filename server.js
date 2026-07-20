@@ -46,6 +46,7 @@ const MIME = {
 };
 const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]);
 const importJobs = new Map();
+const BOOTH_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36";
 
 async function ensureStore() {
   await fsp.mkdir(DATA_DIR, { recursive: true });
@@ -186,6 +187,92 @@ function uniqueTitle(baseTitle, usedTitles) {
   }
   usedTitles.add(titleKey(title));
   return title;
+}
+
+function firstBoothValue(data, paths) {
+  for (const keys of paths) {
+    let value = data;
+    for (const key of keys) {
+      value = value && typeof value === "object" ? value[key] : null;
+      if (value == null) break;
+    }
+    if (value != null && value !== "" && (!Array.isArray(value) || value.length)) return value;
+  }
+  return null;
+}
+
+function boothImageUrl(value) {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.length ? boothImageUrl(value[0]) : "";
+  if (value && typeof value === "object") {
+    return firstBoothValue(value, [["original"], ["url"], ["src"], ["resized"]]) || "";
+  }
+  return "";
+}
+
+function parseBoothItem(data, itemId) {
+  for (const key of ["item", "shop_item", "product", "data"]) {
+    if (data?.[key] && typeof data[key] === "object") {
+      data = data[key];
+      break;
+    }
+  }
+
+  const title = firstBoothValue(data, [["name"], ["title"]]);
+  const creator = firstBoothValue(data, [
+    ["shop", "name"],
+    ["shop", "title"],
+    ["shop_name"],
+    ["seller", "name"]
+  ]);
+  const coverUrl = boothImageUrl(firstBoothValue(data, [
+    ["images"],
+    ["image"],
+    ["main_image"],
+    ["thumbnail"]
+  ]));
+
+  if (![title, creator, coverUrl].every((value) => typeof value === "string" && value.trim())) return null;
+  return {
+    id: Number(itemId),
+    title: title.trim(),
+    creator: creator.trim(),
+    coverUrl: coverUrl.trim(),
+    url: `https://booth.pm/zh-cn/items/${itemId}`
+  };
+}
+
+async function scrapeBoothItem(itemId) {
+  const normalizedId = String(itemId || "").trim();
+  if (!/^\d{1,12}$/.test(normalizedId)) throw new Error("无法从输入内容中识别 Booth 商品编号。");
+
+  let lastError = null;
+  for (const locale of ["zh-cn", "ja"]) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await fetch(`https://booth.pm/${locale}/items/${normalizedId}.json`, {
+        headers: {
+          "User-Agent": BOOTH_USER_AGENT,
+          "Accept-Language": "zh-CN,zh;q=0.9,ja;q=0.8",
+          Accept: "application/json"
+        },
+        redirect: "follow",
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const item = parseBoothItem(await response.json(), normalizedId);
+      if (item) return item;
+      lastError = new Error("Booth 返回的数据缺少名称、作者或封面。");
+    } catch (error) {
+      lastError = error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  if (lastError?.name === "AbortError") throw new Error("连接 Booth 超时，请稍后重试。");
+  throw new Error(lastError?.message || "无法读取 Booth 商品信息。");
 }
 
 function publicImportJob(job) {
@@ -364,6 +451,15 @@ async function handleApi(req, res, url) {
   try {
     if (url.pathname === "/api/items" && req.method === "GET") {
       return send(res, 200, await readItems());
+    }
+
+    if (url.pathname === "/api/booth-import" && req.method === "POST") {
+      const { itemId } = await readJson(req);
+      try {
+        return send(res, 200, await scrapeBoothItem(itemId));
+      } catch (error) {
+        return send(res, 502, { error: error.message || "无法读取 Booth 商品信息。" });
+      }
     }
 
     if (url.pathname === "/api/items" && req.method === "POST") {

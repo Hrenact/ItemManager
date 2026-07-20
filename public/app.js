@@ -11,7 +11,9 @@ const state = {
   editingTagId: null,
   selectedTags: new Set(),
   activeTagFilters: new Set(),
-  pendingMessageResolve: null
+  pendingMessageResolve: null,
+  boothPromptedSources: new Set(),
+  boothImporting: false
 };
 
 const VIEW_SETTINGS_KEY = "item-manager-view-settings";
@@ -37,6 +39,7 @@ let activeColorInputId = null;
 let activeHsv = { h: 0, s: 0, v: 1 };
 let isPickingColorField = false;
 let importPollTimer = null;
+let boothImportTimer = null;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -340,8 +343,68 @@ function updateCoverPreview() {
   image.src = mode === "url" ? source : `/local-cover?path=${encodeURIComponent(source)}`;
 }
 
+function boothSourceFromForm() {
+  const url = $("#urlInput").value.trim();
+  if (/booth/i.test(url)) {
+    const itemMatch = url.match(/\/items\/(\d{7})$/i);
+    if (!itemMatch) return null;
+    return {
+      key: `url:${url.toLocaleLowerCase()}`,
+      itemId: itemMatch[1]
+    };
+  }
+
+  const localPath = $("#pathInput").value.trim().replace(/[\\/]+$/, "");
+  const folderName = localPath.split(/[\\/]/).pop() || "";
+  const folderMatch = folderName.match(/^b(\d{7})$/i);
+  if (!folderMatch) return null;
+  return { key: `folder:${folderName.toLocaleLowerCase()}`, itemId: folderMatch[1] };
+}
+
+async function maybeOfferBoothImport() {
+  if (!dialog.open || state.boothImporting || messageDialog.open) return;
+  const source = boothSourceFromForm();
+  if (!source || state.boothPromptedSources.has(source.key)) return;
+  state.boothPromptedSources.add(source.key);
+
+  if (!await ask("从 Booth 网页导入其余项目？")) return;
+  if (!source.itemId) {
+    await notify("无法从网页链接中识别 Booth 商品编号，请使用包含 /items/数字 的商品链接。");
+    return;
+  }
+
+  state.boothImporting = true;
+  $("#saveButton").disabled = true;
+  try {
+    const item = await api("/api/booth-import", {
+      method: "POST",
+      body: JSON.stringify({ itemId: source.itemId })
+    });
+    $("#titleInput").value = item.title;
+    $("#creatorInput").value = item.creator;
+    $("#urlInput").value = item.url;
+    $("#coverUrlInput").value = item.coverUrl;
+    setCoverMode("url");
+  } catch (error) {
+    await notify(`Booth 导入失败：${error.message}`);
+  } finally {
+    state.boothImporting = false;
+    $("#saveButton").disabled = false;
+  }
+}
+
+function queueBoothImportCheck() {
+  clearTimeout(boothImportTimer);
+  boothImportTimer = setTimeout(() => {
+    maybeOfferBoothImport().catch((error) => notify(error.message));
+  }, 650);
+}
+
 function openDialog(item = null) {
+  clearTimeout(boothImportTimer);
   state.editingId = item?.id || null;
+  state.boothPromptedSources = new Set();
+  state.boothImporting = false;
   state.selectedTags = new Set(item?.tags || []);
   $("#dialogTitle").textContent = item ? "编辑条目" : "新建条目";
   $("#deleteButton").hidden = !item;
@@ -407,6 +470,7 @@ function openDialogWithLocalPath(localPath) {
   openDialog();
   $("#pathInput").value = localPath;
   $("#titleInput").value = localPath.split(/[\\/]/).filter(Boolean).pop() || "";
+  queueBoothImportCheck();
 }
 
 function normalizeHexColor(value, fallback) {
@@ -727,6 +791,10 @@ messageDialog.addEventListener("cancel", (event) => {
 });
 
 $("#coverModeSelect").addEventListener("change", (event) => setCoverMode(event.target.value));
+$("#urlInput").addEventListener("input", queueBoothImportCheck);
+$("#urlInput").addEventListener("change", maybeOfferBoothImport);
+$("#pathInput").addEventListener("input", queueBoothImportCheck);
+$("#pathInput").addEventListener("change", maybeOfferBoothImport);
 $("#coverUrlInput").addEventListener("input", updateCoverPreview);
 $("#coverPathInput").addEventListener("input", updateCoverPreview);
 $("#coverPreviewImage").addEventListener("error", () => {
