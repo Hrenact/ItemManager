@@ -700,6 +700,10 @@ dialog[open] {
   width: min(430px, calc(100vw - 28px));
 }
 
+#boothLoadingDialog {
+  width: min(440px, calc(100vw - 28px));
+}
+
 dialog::backdrop {
   background: rgba(0, 0, 0, 0.65);
   animation: backdrop-in 180ms var(--ease-standard) both;
@@ -1035,21 +1039,52 @@ legend {
 
 .tag-manager-item {
   display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-start;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
   padding: 8px;
+  cursor: grab;
+  touch-action: none;
   transition:
     background-color 150ms var(--ease-standard),
     border-color 150ms var(--ease-standard),
+    opacity 120ms var(--ease-standard),
     transform 150ms var(--ease-out);
+}
+
+.tag-manager-item:active {
+  cursor: grabbing;
 }
 
 .tag-manager-item.active,
 .tag-manager-item:hover {
   border-color: var(--accent);
   background: rgba(89, 195, 195, 0.08);
+}
+
+.tag-manager-item.dragging {
+  border-color: var(--accent);
+  opacity: 0.42;
+}
+
+.tag-manager-list.drag-active {
+  border-color: rgba(89, 195, 195, 0.72);
+}
+
+.tag-drag-handle {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: grab;
+}
+
+.tag-manager-item:hover .tag-drag-handle,
+.tag-manager-item.dragging .tag-drag-handle {
+  color: var(--accent);
 }
 
 .tag-editor {
@@ -1108,6 +1143,35 @@ legend {
 
 .message-actions {
   margin-top: 4px;
+}
+
+.booth-loading {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 8px 2px;
+}
+
+.booth-loading h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.booth-loading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.booth-loading-spinner {
+  width: 38px;
+  height: 38px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: booth-spin 720ms linear infinite;
 }
 
 .color-popover {
@@ -1241,6 +1305,12 @@ legend {
   }
   to {
     background-position: 180% 50%;
+  }
+}
+
+@keyframes booth-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

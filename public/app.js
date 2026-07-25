@@ -27,6 +27,7 @@ const form = $("#itemForm");
 const tagDialog = $("#tagDialog");
 const tagForm = $("#tagForm");
 const messageDialog = $("#messageDialog");
+const boothLoadingDialog = $("#boothLoadingDialog");
 const emptyState = $("#emptyState");
 const content = $(".content");
 const scrollTopButton = $("#scrollTopButton");
@@ -40,6 +41,11 @@ let activeHsv = { h: 0, s: 0, v: 1 };
 let isPickingColorField = false;
 let importPollTimer = null;
 let boothImportTimer = null;
+let draggedTagElement = null;
+let draggedTagPointerId = null;
+let tagDragStartY = 0;
+let tagDragMoved = false;
+let suppressTagManagerClick = false;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -278,7 +284,8 @@ function renderTagManager() {
   const list = $("#tagManagerList");
   list.innerHTML = state.tags.length
     ? state.tags.map((tag) => `
-      <button type="button" class="tag-manager-item ${tag.id === state.editingTagId ? "active" : ""}" data-id="${tag.id}" title="编辑标签：${escapeHtml(tag.name)}">
+      <button type="button" class="tag-manager-item ${tag.id === state.editingTagId ? "active" : ""}" data-id="${tag.id}" title="拖拽排序或点击编辑：${escapeHtml(tag.name)}">
+        <span class="tag-drag-handle" aria-hidden="true">⠿</span>
         <span class="tag" style="${tagStyle(tag.name)}" title="标签：${escapeHtml(tag.name)}">${escapeHtml(tag.name)}</span>
       </button>
     `).join("")
@@ -375,6 +382,8 @@ async function maybeOfferBoothImport() {
 
   state.boothImporting = true;
   $("#saveButton").disabled = true;
+  boothLoadingDialog.showModal();
+  let importError = null;
   try {
     const item = await api("/api/booth-import", {
       method: "POST",
@@ -386,11 +395,13 @@ async function maybeOfferBoothImport() {
     $("#coverUrlInput").value = item.coverUrl;
     setCoverMode("url");
   } catch (error) {
-    await notify(`Booth 导入失败：${error.message}`);
+    importError = error;
   } finally {
+    if (boothLoadingDialog.open) boothLoadingDialog.close();
     state.boothImporting = false;
     $("#saveButton").disabled = false;
   }
+  if (importError) await notify(`Booth 导入失败：${importError.message}`);
 }
 
 function queueBoothImportCheck() {
@@ -629,9 +640,12 @@ async function pickScreenColor(targetId) {
   if (window.itemManager?.pickScreenColor) {
     try {
       const color = await window.itemManager.pickScreenColor();
+      if (!color) return;
       setColorValue(targetId, color);
     } catch (error) {
-      if (error.message !== "Color picking canceled.") await notify(error.message || "取色失败。");
+      if (!error.message?.includes("Color picking canceled.")) {
+        await notify(error.message || "取色失败。");
+      }
     }
     return;
   }
@@ -789,6 +803,7 @@ messageDialog.addEventListener("cancel", (event) => {
   event.preventDefault();
   resolveMessage(false);
 });
+boothLoadingDialog.addEventListener("cancel", (event) => event.preventDefault());
 
 $("#coverModeSelect").addEventListener("change", (event) => setCoverMode(event.target.value));
 $("#urlInput").addEventListener("input", queueBoothImportCheck);
@@ -820,9 +835,85 @@ $("#sidebarTags").addEventListener("change", (event) => {
 });
 
 $("#tagManagerList").addEventListener("click", (event) => {
+  if (suppressTagManagerClick) {
+    event.preventDefault();
+    return;
+  }
   const button = event.target.closest(".tag-manager-item");
   if (!button) return;
   selectTag(state.tags.find((tag) => tag.id === button.dataset.id));
+});
+
+$("#tagManagerList").addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  const button = event.target.closest(".tag-manager-item");
+  if (!button) return;
+  draggedTagElement = button;
+  draggedTagPointerId = event.pointerId;
+  tagDragStartY = event.clientY;
+  tagDragMoved = false;
+  button.setPointerCapture(event.pointerId);
+});
+
+$("#tagManagerList").addEventListener("pointermove", (event) => {
+  if (!draggedTagElement || event.pointerId !== draggedTagPointerId) return;
+  if (!tagDragMoved && Math.abs(event.clientY - tagDragStartY) < 5) return;
+  if (!tagDragMoved) {
+    tagDragMoved = true;
+    draggedTagElement.classList.add("dragging");
+    $("#tagManagerList").classList.add("drag-active");
+  }
+  const list = $("#tagManagerList");
+  const listRect = list.getBoundingClientRect();
+  if (event.clientY < listRect.top + 28) list.scrollTop -= 12;
+  if (event.clientY > listRect.bottom - 28) list.scrollTop += 12;
+  const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".tag-manager-item");
+  if (!target || target === draggedTagElement || !list.contains(target)) return;
+  const insertAfter = event.clientY > target.getBoundingClientRect().top + target.offsetHeight / 2;
+  list.insertBefore(draggedTagElement, insertAfter ? target.nextElementSibling : target);
+});
+
+$("#tagManagerList").addEventListener("pointerup", async (event) => {
+  if (!draggedTagElement || event.pointerId !== draggedTagPointerId) return;
+  const moved = tagDragMoved;
+  if (draggedTagElement.hasPointerCapture(event.pointerId)) {
+    draggedTagElement.releasePointerCapture(event.pointerId);
+  }
+  draggedTagElement.classList.remove("dragging");
+  $("#tagManagerList").classList.remove("drag-active");
+  draggedTagElement = null;
+  draggedTagPointerId = null;
+  tagDragMoved = false;
+  if (!moved) return;
+
+  event.preventDefault();
+  suppressTagManagerClick = true;
+  setTimeout(() => {
+    suppressTagManagerClick = false;
+  }, 0);
+  const ids = [...$("#tagManagerList").querySelectorAll(".tag-manager-item")].map((item) => item.dataset.id);
+  const tagsById = new Map(state.tags.map((tag) => [tag.id, tag]));
+  state.tags = ids.map((id) => tagsById.get(id)).filter(Boolean);
+  renderAll();
+  try {
+    await api("/api/tags/order", {
+      method: "PUT",
+      body: JSON.stringify({ ids })
+    });
+  } catch (error) {
+    await loadData();
+    await notify(`标签排序保存失败：${error.message}`);
+  }
+});
+
+$("#tagManagerList").addEventListener("pointercancel", () => {
+  if (!draggedTagElement) return;
+  draggedTagElement.classList.remove("dragging");
+  $("#tagManagerList").classList.remove("drag-active");
+  if (tagDragMoved) renderTagManager();
+  draggedTagElement = null;
+  draggedTagPointerId = null;
+  tagDragMoved = false;
 });
 
 ["tagNameInput", "tagBgInput", "tagTextInput", "tagBorderInput"].forEach((id) => {

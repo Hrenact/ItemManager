@@ -95,6 +95,10 @@ function createColorPickHtml() {
         font-family: "Segoe UI", system-ui, sans-serif;
         user-select: none;
       }
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
       .hint {
         position: fixed;
         left: 50%;
@@ -134,15 +138,18 @@ function closeColorPick() {
 }
 
 function startColorPick() {
-  if (colorPick) closeColorPick();
+  if (colorPick) {
+    const { resolve } = colorPick;
+    closeColorPick();
+    resolve(null);
+  }
 
   const html = createColorPickHtml();
-  const windows = screen.getAllDisplays().map((display) => {
+  const displays = screen.getAllDisplays();
+  const windows = displays.map(() => {
     const pickerWindow = new BrowserWindow({
-      x: display.bounds.x,
-      y: display.bounds.y,
-      width: display.bounds.width,
-      height: display.bounds.height,
+      width: 1,
+      height: 1,
       frame: false,
       transparent: true,
       resizable: false,
@@ -150,6 +157,7 @@ function startColorPick() {
       skipTaskbar: true,
       alwaysOnTop: true,
       fullscreenable: false,
+      show: false,
       webPreferences: {
         preload: path.join(__dirname, "preload.js"),
         contextIsolation: true,
@@ -157,13 +165,39 @@ function startColorPick() {
       }
     });
     pickerWindow.setAlwaysOnTop(true, "screen-saver");
-    pickerWindow.loadURL(`data:text/html;charset=utf-8,${html}`);
     return pickerWindow;
   });
 
-  return new Promise((resolve, reject) => {
+  const result = new Promise((resolve, reject) => {
     colorPick = { windows, resolve, reject };
   });
+  Promise.all(windows.map((pickerWindow) => pickerWindow.loadURL(`data:text/html;charset=utf-8,${html}`)))
+    .then(() => {
+      if (!colorPick || colorPick.windows !== windows) return;
+      windows.forEach((pickerWindow, index) => {
+        const { x, y, width, height } = displays[index].bounds;
+        pickerWindow.setPosition(x, y, false);
+        pickerWindow.setSize(width, height, false);
+        pickerWindow.setBounds({ x, y, width, height }, false);
+        pickerWindow.showInactive();
+      });
+      for (const pickerWindow of windows) {
+        pickerWindow.setAlwaysOnTop(true, "screen-saver");
+        pickerWindow.moveTop();
+      }
+
+      const cursorDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+      const focusIndex = displays.findIndex((display) => display.id === cursorDisplay.id);
+      const focusWindow = windows[focusIndex] || windows[0];
+      if (focusWindow && !focusWindow.isDestroyed()) focusWindow.focus();
+    })
+    .catch((error) => {
+      if (!colorPick || colorPick.windows !== windows) return;
+      const { reject } = colorPick;
+      closeColorPick();
+      reject(error);
+    });
+  return result;
 }
 
 ipcMain.handle("pick-screen-color", () => startColorPick());
@@ -198,9 +232,9 @@ ipcMain.on("finish-screen-color-pick", async (_event, point) => {
 
 ipcMain.on("cancel-screen-color-pick", () => {
   if (!colorPick) return;
-  const { reject } = colorPick;
+  const { resolve } = colorPick;
   closeColorPick();
-  reject(new Error("Color picking canceled."));
+  resolve(null);
 });
 
 async function createWindow() {

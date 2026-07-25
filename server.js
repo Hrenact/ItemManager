@@ -519,6 +519,23 @@ async function handleApi(req, res, url) {
       return send(res, 201, tag);
     }
 
+    if (url.pathname === "/api/tags/order" && req.method === "PUT") {
+      const body = await readJson(req);
+      const tags = await readTags();
+      const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+      const uniqueIds = new Set(ids);
+      const tagsById = new Map(tags.map((tag) => [tag.id, tag]));
+      const hasInvalidIds = (
+        ids.length !== tags.length ||
+        uniqueIds.size !== ids.length ||
+        ids.some((id) => !tagsById.has(id))
+      );
+      if (hasInvalidIds) return send(res, 400, { error: "Tag order must contain every tag exactly once." });
+      const orderedTags = ids.map((id) => tagsById.get(id));
+      await writeTags(orderedTags);
+      return send(res, 200, orderedTags);
+    }
+
     const tagMatch = url.pathname.match(/^\/api\/tags\/([^/]+)$/);
     if (tagMatch && req.method === "PUT") {
       const body = await readJson(req);
