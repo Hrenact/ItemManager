@@ -10,38 +10,59 @@
     <main class="shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">IM</div>
+          <img class="brand-mark" src="/image/Icon.png" alt="" draggable="false" />
           <div>
             <h1>Item Manager</h1>
             <p>Local Library</p>
           </div>
         </div>
 
-        <button class="primary" id="newItemButton">+ 新建条目</button>
-        <button class="secondary sidebar-action" id="manageTagsButton">新建/编辑标签</button>
+        <div class="sidebar-actions">
+          <button class="primary" id="newItemButton" title="添加新的收藏条目">+ 新建条目</button>
+          <button class="secondary" id="importFolderButton" title="选择文件夹并导入其第一层文件和文件夹">导入</button>
+        </div>
+        <div class="import-progress" id="importProgress" hidden>
+          <div class="import-progress-head">
+            <span id="importProgressTitle">正在导入</span>
+            <strong id="importProgressCount">0</strong>
+          </div>
+          <div class="import-progress-track" aria-hidden="true">
+            <span id="importProgressBar"></span>
+          </div>
+          <p id="importProgressText">准备中...</p>
+        </div>
+        <button class="secondary sidebar-action" id="manageTagsButton" title="打开标签管理器">新建/编辑标签</button>
 
         <label class="search">
           <span>搜索</span>
-          <input id="searchInput" type="search" placeholder="名称、作者、标签、备注" />
+          <input id="searchInput" type="search" placeholder="名称、作者、标签、备注" title="按名称、作者、标签或备注搜索" />
         </label>
 
         <section class="tag-panel">
           <div class="label-row">
             <h2>标签</h2>
-            <button type="button" class="text-button" id="clearTagFiltersButton">清除</button>
+            <button type="button" class="text-button" id="clearTagFiltersButton" title="清除所有标签筛选">清除</button>
           </div>
           <div class="sidebar-tags" id="sidebarTags"></div>
         </section>
 
-        <div class="stats">
-          <div>
-            <strong id="totalCount">0</strong>
+        <section class="download-panel" id="downloadPanel" aria-live="polite" hidden>
+          <div class="download-panel-head">
+            <h2>下载</h2>
+            <span id="activeDownloadCount">0</span>
+          </div>
+          <div class="download-jobs" id="downloadJobs"></div>
+        </section>
+
+        <div class="sidebar-footer">
+          <div class="stats">
             <span>条目</span>
+            <strong><span id="shownCount">0</span>/<span id="totalCount">0</span></strong>
           </div>
-          <div>
-            <strong id="shownCount">0</strong>
-            <span>显示</span>
-          </div>
+          <button type="button" class="secondary settings-button" id="settingsButton" title="打开应用设置">
+            <span aria-hidden="true">⚙</span>
+            设置
+          </button>
         </div>
       </aside>
 
@@ -49,25 +70,25 @@
         <header class="toolbar">
           <div>
             <h2>收藏库</h2>
-            <p>链接、路径、封面和备注都保存在此项目文件夹中。</p>
+            <p>链接、路径、封面路径和备注都保存在此项目文件夹中。</p>
           </div>
           <div class="toolbar-controls">
-            <label>
+            <div class="select-field">
               <span>栏目大小</span>
-              <select id="cardSizeSelect" aria-label="栏目大小">
-                <option value="220px">小</option>
-                <option value="280px">中</option>
-                <option value="360px">大</option>
+              <select id="cardSizeSelect" aria-label="栏目大小" title="调整卡片栏目大小">
+                <option value="220px">紧凑</option>
+                <option value="280px">标准</option>
+                <option value="360px">宽松</option>
               </select>
-            </label>
-            <label>
+            </div>
+            <div class="select-field">
               <span>封面比例</span>
-              <select id="coverRatioSelect" aria-label="封面比例">
-                <option value="1 / 1">1:1</option>
-                <option value="4 / 3">4:3</option>
-                <option value="16 / 9">16:9</option>
+              <select id="coverRatioSelect" aria-label="封面比例" title="调整封面显示比例">
+                <option value="1 / 1">方形 1:1</option>
+                <option value="4 / 3">相册 4:3</option>
+                <option value="16 / 9">宽屏 16:9</option>
               </select>
-            </label>
+            </div>
           </div>
         </header>
 
@@ -76,6 +97,7 @@
           <h3>还没有条目</h3>
           <p>添加第一个作品、资产、文档或下载项。</p>
         </div>
+        <button type="button" class="scroll-top" id="scrollTopButton" aria-label="返回顶部" title="返回顶部">↑</button>
       </section>
     </main>
 
@@ -83,67 +105,78 @@
       <form id="itemForm" method="dialog">
         <div class="dialog-head">
           <h2 id="dialogTitle">新建条目</h2>
-          <button type="button" class="icon-button" id="closeDialogButton" aria-label="关闭">×</button>
+          <button type="button" class="icon-button" id="closeDialogButton" aria-label="关闭" title="关闭窗口">×</button>
         </div>
 
         <input type="hidden" id="itemId" />
 
-        <div class="form-grid">
-          <label>
-            <span>标题</span>
-            <input id="titleInput" required placeholder="作品或资源名称" />
-          </label>
-          <label>
-            <span>作者 / 商店</span>
-            <input id="creatorInput" placeholder="Creator, Shop, Circle" />
-          </label>
-          <label>
-            <span>网页链接</span>
-            <input id="urlInput" type="url" placeholder="https://..." />
-          </label>
-          <div class="field">
-            <div class="label-row">
-              本地路径
-              <span class="inline-actions">
-                <button type="button" class="mini-button" id="pickFolderButton">选择文件夹</button>
-                <button type="button" class="mini-button" id="pickFileButton">选择文件</button>
-              </span>
+        <div class="item-editor-top">
+          <div class="cover-editor-preview" id="coverPreview" title="拖入一张图片作为本地封面">
+            <img id="coverPreviewImage" alt="封面预览" draggable="false" hidden />
+            <div class="cover-preview-empty" id="coverPreviewEmpty">
+              <strong>?</strong>
+              <small>拖入图片来快速设置</small>
             </div>
-            <input id="pathInput" placeholder="F:\Downloads\item.zip 或文件夹路径" />
           </div>
-          <div class="field wide">
-            <span>标签</span>
-            <div class="tag-picker" id="tagPicker"></div>
+
+          <div class="form-grid">
+            <label class="title-field">
+              <span>标题</span>
+              <input id="titleInput" required placeholder="作品或资源名称" title="输入条目标题" />
+            </label>
+            <label class="creator-field">
+              <span>作者</span>
+              <input id="creatorInput" placeholder="Creator" title="输入作者、商店或来源" />
+            </label>
+            <label class="url-field">
+              <span>网页链接</span>
+              <input id="urlInput" type="url" placeholder="https://..." title="输入可打开的网页链接" />
+            </label>
+            <div class="field path-field">
+              <div class="label-row">
+                本地路径
+                <span class="inline-actions">
+                  <button type="button" class="mini-button" id="pickFolderButton" title="从本机选择一个文件夹">选择文件夹</button>
+                  <button type="button" class="mini-button" id="pickFileButton" title="从本机选择一个文件">选择文件</button>
+                </span>
+              </div>
+              <input id="pathInput" placeholder="F:\Downloads\item.zip 或文件夹路径" title="输入或选择本地文件/文件夹路径" />
+            </div>
+            <div class="cover-field wide" role="group" aria-label="封面">
+              <span class="cover-label">封面</span>
+              <div class="cover-settings">
+                <div class="select-field cover-mode-field">
+                  <select id="coverModeSelect" name="coverMode" aria-label="封面来源" title="选择封面图片来源">
+                    <option value="url">加载网页链接</option>
+                    <option value="local">使用本地图片</option>
+                  </select>
+                </div>
+                <label id="coverUrlGroup">
+                  <input id="coverUrlInput" type="url" placeholder="https://.../cover.jpg" title="输入封面图片 URL" />
+                </label>
+                <div class="field" id="coverPathGroup" hidden>
+                  <input id="coverPathInput" placeholder="F:\Pictures\cover.png" title="仅保存本地封面图片路径" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <fieldset class="cover-field">
-          <legend>封面</legend>
-          <div class="segmented">
-            <label><input type="radio" name="coverMode" value="url" checked /> 加载网页链接</label>
-            <label><input type="radio" name="coverMode" value="local" /> 使用本地图片</label>
-          </div>
-          <label id="coverUrlGroup">
-            <span>封面 URL</span>
-            <input id="coverUrlInput" type="url" placeholder="https://.../cover.jpg" />
-          </label>
-          <label id="coverPathGroup" hidden>
-            <span>本地图片路径</span>
-            <input id="coverPathInput" placeholder="F:\Pictures\cover.png" />
-          </label>
-          <button type="button" class="secondary" id="copyCoverButton">复制本地封面到项目</button>
-        </fieldset>
+        <div class="field tag-field">
+          <span>标签</span>
+          <div class="tag-picker" id="tagPicker"></div>
+        </div>
 
         <label>
           <span>备注</span>
-          <textarea id="notesInput" rows="4" placeholder="版本、购买状态、安装说明等"></textarea>
+          <textarea id="notesInput" rows="4" placeholder="版本、购买状态、安装说明等" title="填写条目备注"></textarea>
         </label>
 
         <div class="dialog-actions">
-          <button type="button" class="danger" id="deleteButton">删除</button>
+          <button type="button" class="danger" id="deleteButton" title="删除当前条目">删除</button>
           <div>
-            <button type="button" class="secondary" id="cancelButton">取消</button>
-            <button class="primary" id="saveButton">保存</button>
+            <button type="button" class="secondary" id="cancelButton" title="放弃更改并关闭">取消</button>
+            <button class="primary" id="saveButton" title="保存条目">保存</button>
           </div>
         </div>
       </form>
@@ -153,32 +186,44 @@
       <form id="tagForm" method="dialog">
         <div class="dialog-head">
           <h2>新建/编辑标签</h2>
-          <button type="button" class="icon-button" id="closeTagDialogButton" aria-label="关闭">×</button>
+          <button type="button" class="icon-button" id="closeTagDialogButton" aria-label="关闭" title="关闭窗口">×</button>
         </div>
 
         <div class="tag-manager">
           <aside class="tag-manager-side">
             <div class="tag-manager-list" id="tagManagerList"></div>
-            <button type="button" class="secondary" id="newTagButton">新建标签</button>
+            <button type="button" class="secondary" id="newTagButton" title="创建一个新标签">新建标签</button>
           </aside>
           <section class="tag-editor">
             <input type="hidden" id="tagIdInput" />
             <label>
               <span>标签名称</span>
-              <input id="tagNameInput" placeholder="avatar" />
+              <input id="tagNameInput" placeholder="avatar" title="输入标签名称" />
             </label>
             <div class="color-grid">
               <label>
                 <span>背景颜色</span>
-                <input id="tagBgInput" type="color" value="#202633" />
+                <span class="color-control">
+                  <button type="button" class="color-swatch-button" data-color-target="tagBgInput" title="打开背景颜色调色盘"></button>
+                  <input type="hidden" id="tagBgInput" value="#202633" />
+                  <button type="button" class="mini-button eyedropper-button" data-color-target="tagBgInput" title="从屏幕取背景颜色">取色</button>
+                </span>
               </label>
               <label>
                 <span>文字颜色</span>
-                <input id="tagTextInput" type="color" value="#bfd0df" />
+                <span class="color-control">
+                  <button type="button" class="color-swatch-button" data-color-target="tagTextInput" title="打开文字颜色调色盘"></button>
+                  <input type="hidden" id="tagTextInput" value="#bfd0df" />
+                  <button type="button" class="mini-button eyedropper-button" data-color-target="tagTextInput" title="从屏幕取文字颜色">取色</button>
+                </span>
               </label>
               <label>
                 <span>边框颜色</span>
-                <input id="tagBorderInput" type="color" value="#2a3140" />
+                <span class="color-control">
+                  <button type="button" class="color-swatch-button" data-color-target="tagBorderInput" title="打开边框颜色调色盘"></button>
+                  <input type="hidden" id="tagBorderInput" value="#2a3140" />
+                  <button type="button" class="mini-button eyedropper-button" data-color-target="tagBorderInput" title="从屏幕取边框颜色">取色</button>
+                </span>
               </label>
             </div>
             <div class="tag-preview-row">
@@ -186,14 +231,87 @@
               <span class="tag" id="tagPreview">Tag</span>
             </div>
             <div class="dialog-actions">
-              <button type="button" class="danger" id="deleteTagButton">删除</button>
+              <button type="button" class="danger" id="deleteTagButton" title="删除当前标签">删除</button>
               <div>
-                <button type="button" class="secondary" id="resetTagColorsButton">默认</button>
-                <button type="button" class="secondary" id="randomTagColorsButton">随机</button>
-                <button class="primary" id="saveTagButton">保存</button>
+                <button type="button" class="secondary" id="resetTagColorsButton" title="恢复默认标签颜色">默认</button>
+                <button type="button" class="secondary" id="randomTagColorsButton" title="随机生成标签颜色">随机</button>
+                <button class="primary" id="saveTagButton" title="保存标签">保存</button>
               </div>
             </div>
           </section>
+        </div>
+        <div class="color-popover" id="colorPopover" hidden>
+          <div class="color-popover-head">
+            <span>调色盘</span>
+            <button type="button" class="icon-button" id="closeColorPopoverButton" aria-label="关闭调色盘" title="关闭调色盘">×</button>
+          </div>
+          <canvas class="color-field" id="colorField" width="260" height="156" aria-label="颜色区域"></canvas>
+          <div class="color-popover-controls">
+            <span class="color-popover-swatch" id="colorPopoverPreview" title="当前颜色"></span>
+            <input id="colorHueRange" class="hue-slider" type="range" min="0" max="360" value="0" title="调整色相" />
+          </div>
+          <label class="color-value-field">
+            <span>色值</span>
+            <input
+              id="colorHexInput"
+              type="text"
+              inputmode="text"
+              maxlength="7"
+              placeholder="#RRGGBB"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="颜色十六进制色值"
+            />
+          </label>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="settingsDialog">
+      <form id="settingsForm" method="dialog">
+        <div class="dialog-head">
+          <div>
+            <h2>设置</h2>
+            <p class="dialog-subtitle">配置协议关联、文件保存位置和开发工具。</p>
+          </div>
+          <button type="button" class="icon-button" id="closeSettingsDialogButton" aria-label="关闭" title="关闭设置">×</button>
+        </div>
+
+        <div class="settings-list">
+          <label class="setting-toggle">
+            <input id="associateProtocolInput" type="checkbox" />
+            <span>
+              <strong>将该应用关联 URL 快捷方式 booth-library-manager://</strong>
+              <small>勾选后，本应用每次启动都会重新注册该 URL 协议。</small>
+            </span>
+          </label>
+
+          <div class="setting-field">
+            <div>
+              <strong>文件下载保存目录</strong>
+              <small>所有 BOOTH 下载的统一根目录；商品文件将保存到 b + item_id 子目录，例如 b6306337。</small>
+            </div>
+            <div class="path-picker-row">
+              <input id="downloadDirectoryInput" placeholder="请选择统一下载根目录" />
+              <button type="button" class="secondary" id="pickDownloadDirectoryButton">选择</button>
+            </div>
+          </div>
+
+          <label class="setting-toggle">
+            <input id="allowDevToolsInput" type="checkbox" />
+            <span>
+              <strong>允许打开 DevTools</strong>
+              <small>启用后可使用 F12 或 Ctrl+Shift+I 打开开发者工具。</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <span></span>
+          <div>
+            <button type="button" class="secondary" id="cancelSettingsButton">取消</button>
+            <button class="primary" id="saveSettingsButton">保存</button>
+          </div>
         </div>
       </form>
     </dialog>
@@ -202,17 +320,27 @@
       <form method="dialog">
         <div class="dialog-head">
           <h2 id="messageTitle">提示</h2>
-          <button type="button" class="icon-button" id="messageCloseButton" aria-label="关闭">×</button>
+          <button type="button" class="icon-button" id="messageCloseButton" aria-label="关闭" title="关闭提示">×</button>
         </div>
         <p class="message-body" id="messageBody"></p>
         <div class="dialog-actions message-actions">
           <span></span>
           <div>
-            <button type="button" class="secondary" id="messageCancelButton">取消</button>
-            <button class="primary" id="messageOkButton">确定</button>
+            <button type="button" class="secondary" id="messageCancelButton" title="取消操作">取消</button>
+            <button class="primary" id="messageOkButton" title="确认操作">确定</button>
           </div>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="boothLoadingDialog" aria-labelledby="boothLoadingTitle">
+      <div class="booth-loading" role="status" aria-live="polite">
+        <span class="booth-loading-spinner" aria-hidden="true"></span>
+        <div>
+          <h2 id="boothLoadingTitle">正在读取 Booth 网页</h2>
+          <p>正在获取项目名称、作者和封面，请稍候...</p>
+        </div>
+      </div>
     </dialog>
 
     <script src="/app.js"></script>

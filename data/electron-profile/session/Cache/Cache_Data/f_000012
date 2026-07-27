@@ -284,30 +284,11 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: auto;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px 14px;
-}
-
-.sidebar-footer {
-  display: grid;
-  gap: 10px;
-  margin-top: auto;
-}
-
-.settings-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 38px;
-}
-
-.settings-button span {
-  color: var(--accent);
-  font-size: 16px;
 }
 
 .stats strong {
@@ -340,122 +321,6 @@ select:focus {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
-}
-
-.download-panel {
-  display: grid;
-  gap: 9px;
-  margin-bottom: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  padding: 11px;
-}
-
-.download-panel-head,
-.download-job-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.download-panel-head h2 {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.download-panel-head span {
-  color: var(--accent);
-  font-size: 12px;
-}
-
-.download-jobs {
-  display: grid;
-  gap: 10px;
-  max-height: 220px;
-  min-width: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.download-job {
-  display: grid;
-  gap: 7px;
-  min-width: 0;
-  overflow: hidden;
-  border-top: 1px solid var(--line);
-  padding-top: 9px;
-}
-
-.download-job-head {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.download-job:first-child {
-  border-top: 0;
-  padding-top: 0;
-}
-
-.download-job-name {
-  overflow: hidden;
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.download-cancel-button {
-  min-height: 24px;
-  flex: 0 0 auto;
-  border: 1px solid rgba(255, 107, 122, 0.35);
-  border-radius: 6px;
-  background: rgba(255, 107, 122, 0.1);
-  color: var(--danger);
-  padding: 0 7px;
-  font-size: 11px;
-}
-
-.download-track {
-  height: 7px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #0d1017;
-}
-
-.download-track span {
-  display: block;
-  width: 0%;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-  transition: width 120ms linear;
-}
-
-.download-track span.indeterminate {
-  width: 45%;
-  background: linear-gradient(90deg, rgba(89, 195, 195, 0.25), var(--accent));
-  animation: download-indeterminate 950ms ease-in-out infinite alternate;
-}
-
-.download-job-status {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.download-job[data-status="completed"] .download-track span {
-  width: 100%;
-}
-
-.download-job[data-status="error"] .download-track span,
-.download-job[data-status="cancelled"] .download-track span {
-  background: var(--danger);
 }
 
 .content {
@@ -835,10 +700,6 @@ dialog[open] {
   width: min(430px, calc(100vw - 28px));
 }
 
-#settingsDialog {
-  width: min(620px, calc(100vw - 28px));
-}
-
 #boothLoadingDialog {
   width: min(440px, calc(100vw - 28px));
 }
@@ -873,74 +734,6 @@ form {
   grid-template-columns: repeat(12, minmax(0, 1fr));
   column-gap: 14px;
   row-gap: 16px;
-}
-
-.dialog-subtitle {
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.settings-list {
-  display: grid;
-  gap: 12px;
-}
-
-.setting-toggle,
-.setting-field {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #0d1017;
-  padding: 14px;
-}
-
-.setting-toggle {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.setting-toggle input {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  margin: 2px 0 0;
-  accent-color: var(--accent);
-}
-
-.setting-toggle span,
-.setting-field > div:first-child {
-  display: grid;
-  gap: 5px;
-}
-
-.setting-toggle strong,
-.setting-field strong {
-  color: var(--text);
-  font-size: 14px;
-}
-
-.setting-toggle small,
-.setting-field small {
-  color: var(--muted);
-  line-height: 1.5;
-}
-
-.setting-field {
-  display: grid;
-  gap: 12px;
-}
-
-.path-picker-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 76px;
-  gap: 8px;
-}
-
-.path-picker-row .secondary {
-  min-height: 42px;
-  padding: 0 12px;
 }
 
 .title-field {
@@ -1425,27 +1218,6 @@ legend {
   gap: 12px;
 }
 
-.color-value-field {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.color-value-field input {
-  min-height: 36px;
-  padding: 7px 10px;
-  font-family: Consolas, "Courier New", monospace;
-  text-transform: uppercase;
-}
-
-.color-value-field input[aria-invalid="true"] {
-  border-color: var(--danger);
-}
-
 .color-popover-swatch {
   width: 34px;
   height: 34px;
@@ -1533,15 +1305,6 @@ legend {
   }
   to {
     background-position: 180% 50%;
-  }
-}
-
-@keyframes download-indeterminate {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(220%);
   }
 }
 

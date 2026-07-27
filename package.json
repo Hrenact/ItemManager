@@ -1,11 +1,14 @@
 {
   "name": "item-manager",
-  "version": "0.1.0",
+  "version": "0.3.5",
   "private": true,
   "description": "A local dark-theme item library manager.",
-  "main": "server.js",
+  "main": "electron-main.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "electron": "electron .",
+    "clean:release": "powershell -NoProfile -Command \"if (Test-Path -LiteralPath release) { Remove-Item -LiteralPath release -Recurse -Force }\"",
+    "dist": "npm run clean:release && set \"ELECTRON_CACHE=%CD%\\.electron-cache\"&& set \"ELECTRON_BUILDER_CACHE=%CD%\\.electron-builder-cache\"&& electron-builder --win"
   },
   "keywords": [
     "item-manager",
@@ -13,5 +16,51 @@
     "local"
   ],
   "author": "",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.hrenact.itemmanager",
+    "productName": "Item Manager",
+    "electronDist": "node_modules/electron/dist",
+    "afterPack": "build/after-pack.js",
+    "protocols": [
+      {
+        "name": "Booth Library Manager",
+        "schemes": [
+          "booth-library-manager"
+        ]
+      }
+    ],
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "public/**/*",
+      "image/**/*",
+      "server.js",
+      "electron-main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "data"
+      }
+    ],
+    "win": {
+      "target": [
+        "dir",
+        "zip"
+      ],
+      "icon": "build/icon.ico"
+    }
+  }
 }

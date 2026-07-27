@@ -1,0 +1,54 @@
+name: Build and Release
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    name: Build Windows package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Electron app
+        run: npm run dist
+
+      - name: Read package metadata
+        id: package
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          "productName=$($package.build.productName)" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: auto-build-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.package.outputs.productName }} build ${{ github.run_number }}
+          body: |
+            Automated build from `${{ github.ref_name }}`.
+
+            Commit: ${{ github.sha }}
+          files: release/*.zip
+          fail_on_unmatched_files: true
+          make_latest: true
