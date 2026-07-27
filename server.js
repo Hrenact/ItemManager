@@ -22,7 +22,10 @@ const DEFAULT_TAG_COLORS = {
 };
 const DEFAULT_SETTINGS = {
   coverRatio: "1 / 1",
-  cardSize: "280px"
+  cardSize: "280px",
+  associateProtocol: false,
+  downloadDirectory: "",
+  allowDevTools: false
 };
 const ALLOWED_COVER_RATIOS = new Set(["1 / 1", "4 / 3", "16 / 9"]);
 const ALLOWED_CARD_SIZES = new Set(["220px", "280px", "360px"]);
@@ -110,7 +113,13 @@ function cleanSettings(input = {}) {
     ? input.cardSize
     : legacyCardSize || DEFAULT_SETTINGS.cardSize;
 
-  return { coverRatio, cardSize };
+  return {
+    coverRatio,
+    cardSize,
+    associateProtocol: input.associateProtocol === true,
+    downloadDirectory: String(input.downloadDirectory || "").trim(),
+    allowDevTools: input.allowDevTools === true
+  };
 }
 
 async function readSettings() {
@@ -505,7 +514,8 @@ async function handleApi(req, res, url) {
     }
 
     if (url.pathname === "/api/settings" && req.method === "PUT") {
-      return send(res, 200, await writeSettings(await readJson(req)));
+      const current = await readSettings();
+      return send(res, 200, await writeSettings({ ...current, ...await readJson(req) }));
     }
 
     if (url.pathname === "/api/tags" && req.method === "POST") {

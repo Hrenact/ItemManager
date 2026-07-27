@@ -7,7 +7,6 @@ const DEFAULT_TAG_COLORS = {
 const state = {
   items: [],
   tags: [],
-  settings: null,
   editingId: null,
   editingTagId: null,
   selectedTags: new Set(),
@@ -19,12 +18,6 @@ const state = {
 
 const VIEW_SETTINGS_KEY = "item-manager-view-settings";
 const DEFAULT_VIEW_SETTINGS = { coverRatio: "1 / 1", cardSize: "280px" };
-const DEFAULT_SETTINGS = {
-  ...DEFAULT_VIEW_SETTINGS,
-  associateProtocol: false,
-  downloadDirectory: "",
-  allowDevTools: false
-};
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -32,8 +25,6 @@ const grid = $("#itemsGrid");
 const dialog = $("#itemDialog");
 const form = $("#itemForm");
 const tagDialog = $("#tagDialog");
-const settingsDialog = $("#settingsDialog");
-const settingsForm = $("#settingsForm");
 const tagForm = $("#tagForm");
 const messageDialog = $("#messageDialog");
 const boothLoadingDialog = $("#boothLoadingDialog");
@@ -126,17 +117,14 @@ function loadLocalViewSettings() {
 
 async function saveViewSettings() {
   const settings = {
-    ...(state.settings || DEFAULT_SETTINGS),
     coverRatio: $("#coverRatioSelect").value,
     cardSize: $("#cardSizeSelect").value
   };
   localStorage.setItem(VIEW_SETTINGS_KEY, JSON.stringify(settings));
-  const saved = await api("/api/settings", {
+  return api("/api/settings", {
     method: "PUT",
     body: JSON.stringify(settings)
   });
-  state.settings = saved;
-  return saved;
 }
 
 function applyViewSettings(settings = DEFAULT_VIEW_SETTINGS) {
@@ -760,32 +748,6 @@ async function importFolder() {
   }
 }
 
-function openSettings() {
-  const settings = state.settings || DEFAULT_SETTINGS;
-  $("#associateProtocolInput").checked = settings.associateProtocol === true;
-  $("#downloadDirectoryInput").value = settings.downloadDirectory || "";
-  $("#allowDevToolsInput").checked = settings.allowDevTools === true;
-  settingsDialog.showModal();
-}
-
-async function saveApplicationSettings() {
-  const payload = {
-    ...(state.settings || DEFAULT_SETTINGS),
-    associateProtocol: $("#associateProtocolInput").checked,
-    downloadDirectory: $("#downloadDirectoryInput").value.trim(),
-    allowDevTools: $("#allowDevToolsInput").checked
-  };
-  const saved = await api("/api/settings", {
-    method: "PUT",
-    body: JSON.stringify(payload)
-  });
-  state.settings = saved;
-  if (window.itemManager?.applyDesktopSettings) {
-    await window.itemManager.applyDesktopSettings(saved);
-  }
-  settingsDialog.close();
-}
-
 async function loadData() {
   const [items, tags, settings] = await Promise.all([
     api("/api/items"),
@@ -794,11 +756,7 @@ async function loadData() {
   ]);
   state.items = items;
   state.tags = tags;
-  state.settings = { ...DEFAULT_SETTINGS, ...settings };
-  applyViewSettings(state.settings);
-  if (window.itemManager?.applyDesktopSettings) {
-    await window.itemManager.applyDesktopSettings(state.settings);
-  }
+  applyViewSettings(settings);
   renderAll();
 }
 
@@ -807,25 +765,6 @@ $("#importFolderButton").addEventListener("click", importFolder);
 $("#manageTagsButton").addEventListener("click", () => {
   selectTag(state.tags[0] || null);
   tagDialog.showModal();
-});
-$("#settingsButton").addEventListener("click", openSettings);
-$("#closeSettingsDialogButton").addEventListener("click", () => settingsDialog.close());
-$("#cancelSettingsButton").addEventListener("click", () => settingsDialog.close());
-$("#pickDownloadDirectoryButton").addEventListener("click", async () => {
-  try {
-    const result = await chooseLocalPath("folder");
-    if (result.localPath) $("#downloadDirectoryInput").value = result.localPath;
-  } catch (error) {
-    await notify(error.message);
-  }
-});
-settingsForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    await saveApplicationSettings();
-  } catch (error) {
-    await notify(error.message);
-  }
 });
 $("#closeDialogButton").addEventListener("click", () => dialog.close());
 $("#closeTagDialogButton").addEventListener("click", () => tagDialog.close());

@@ -2,11 +2,43 @@ const { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen } = require
 const fs = require("fs");
 const path = require("path");
 
+const APP_PROTOCOL = "booth-library-manager";
+const DEFAULT_DESKTOP_SETTINGS = {
+  associateProtocol: false,
+  downloadDirectory: "",
+  allowDevTools: false
+};
+
 let server;
 let colorPick = null;
+let mainWindow = null;
+let devToolsWindow = null;
+let desktopSettings = { ...DEFAULT_DESKTOP_SETTINGS };
+let pendingProtocolUrl = findProtocolUrl(process.argv);
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch("enable-features", "OverlayScrollbar");
+
+function findProtocolUrl(commandLine) {
+  return commandLine.find((argument) =>
+    argument.toLowerCase().startsWith(`${APP_PROTOCOL}://`)
+  ) || null;
+}
+
+function cleanDesktopSettings(settings = {}) {
+  return {
+    associateProtocol: settings.associateProtocol === true,
+    downloadDirectory: String(settings.downloadDirectory || "").trim(),
+    allowDevTools: settings.allowDevTools === true
+  };
+}
+
+function restoreMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
 
 function executableDirectory() {
   return app.isPackaged
@@ -16,6 +48,51 @@ function executableDirectory() {
 
 function archiveDirectory() {
   return path.join(executableDirectory(), "data");
+}
+
+function readDesktopSettings() {
+  try {
+    const settings = JSON.parse(fs.readFileSync(path.join(archiveDirectory(), "settings.json"), "utf8"));
+    return cleanDesktopSettings(settings);
+  } catch {
+    return { ...DEFAULT_DESKTOP_SETTINGS };
+  }
+}
+
+function syncProtocolRegistration() {
+  if (!app.isPackaged) {
+    return { supported: false, registered: false };
+  }
+
+  if (desktopSettings.associateProtocol) {
+    app.setAsDefaultProtocolClient(APP_PROTOCOL);
+  } else if (app.isDefaultProtocolClient(APP_PROTOCOL)) {
+    app.removeAsDefaultProtocolClient(APP_PROTOCOL);
+  }
+
+  return {
+    supported: true,
+    registered: app.isDefaultProtocolClient(APP_PROTOCOL)
+  };
+}
+
+function closeDevTools() {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.isDevToolsOpened()) {
+    mainWindow.webContents.closeDevTools();
+  }
+  if (devToolsWindow && !devToolsWindow.isDestroyed()) {
+    devToolsWindow.destroy();
+  }
+  devToolsWindow = null;
+}
+
+function applyDesktopSettings(settings) {
+  desktopSettings = cleanDesktopSettings(settings);
+  if (!desktopSettings.allowDevTools) closeDevTools();
+  return {
+    ...desktopSettings,
+    protocol: syncProtocolRegistration()
+  };
 }
 
 function configurePortableProfile() {
@@ -202,6 +279,8 @@ function startColorPick() {
 
 ipcMain.handle("pick-screen-color", () => startColorPick());
 
+ipcMain.handle("apply-desktop-settings", (_event, settings) => applyDesktopSettings(settings));
+
 ipcMain.handle("pick-local-path", async (event, kind) => {
   if (!["file", "folder", "image"].includes(kind)) {
     throw new Error("Picker kind must be file, folder, or image.");
@@ -259,25 +338,21 @@ async function createWindow() {
       nodeIntegration: false
     }
   });
+  mainWindow = window;
 
   await window.loadURL(`http://127.0.0.1:${started.port}`);
-
-  let devToolsWindow = null;
-
-  function closeDevTools() {
-    if (!window.isDestroyed() && window.webContents.isDevToolsOpened()) {
-      window.webContents.closeDevTools();
-    }
-    if (devToolsWindow && !devToolsWindow.isDestroyed()) {
-      devToolsWindow.destroy();
-    }
-    devToolsWindow = null;
+  if (pendingProtocolUrl) {
+    pendingProtocolUrl = null;
+    restoreMainWindow();
   }
 
   function handleDevToolsShortcut(event, input) {
-    if (input.type !== "keyDown" || input.key !== "F12" || input.isAutoRepeat) return;
+    const isShortcut = input.key === "F12" ||
+      (input.control && input.shift && String(input.key).toLowerCase() === "i");
+    if (input.type !== "keyDown" || !isShortcut || input.isAutoRepeat) return;
 
     event.preventDefault();
+    if (!desktopSettings.allowDevTools) return;
     if (devToolsWindow && !devToolsWindow.isDestroyed()) {
       closeDevTools();
     } else {
@@ -315,15 +390,39 @@ async function createWindow() {
   }
 
   window.webContents.on("before-input-event", handleDevToolsShortcut);
-  window.once("closed", closeDevTools);
+  window.once("closed", () => {
+    closeDevTools();
+    if (mainWindow === window) mainWindow = null;
+  });
 }
 
 configurePortableProfile();
 
-app.whenReady().then(createWindow).catch((error) => {
-  dialog.showErrorBox("Item Manager failed to start", error.stack || error.message);
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!hasSingleInstanceLock) {
   app.quit();
-});
+} else {
+  app.on("second-instance", (_event, commandLine) => {
+    pendingProtocolUrl = findProtocolUrl(commandLine) || pendingProtocolUrl;
+    restoreMainWindow();
+  });
+
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    pendingProtocolUrl = url;
+    restoreMainWindow();
+  });
+
+  app.whenReady().then(() => {
+    desktopSettings = readDesktopSettings();
+    applyDesktopSettings(desktopSettings);
+    return createWindow();
+  }).catch((error) => {
+    dialog.showErrorBox("Item Manager failed to start", error.stack || error.message);
+    app.quit();
+  });
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

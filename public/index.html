@@ -46,9 +46,15 @@
           <div class="sidebar-tags" id="sidebarTags"></div>
         </section>
 
-        <div class="stats">
-          <span>条目</span>
-          <strong><span id="shownCount">0</span>/<span id="totalCount">0</span></strong>
+        <div class="sidebar-footer">
+          <div class="stats">
+            <span>条目</span>
+            <strong><span id="shownCount">0</span>/<span id="totalCount">0</span></strong>
+          </div>
+          <button type="button" class="secondary settings-button" id="settingsButton" title="打开应用设置">
+            <span aria-hidden="true">⚙</span>
+            设置
+          </button>
         </div>
       </aside>
 
@@ -235,6 +241,55 @@
           <div class="color-popover-controls">
             <span class="color-popover-swatch" id="colorPopoverPreview" title="当前颜色"></span>
             <input id="colorHueRange" class="hue-slider" type="range" min="0" max="360" value="0" title="调整色相" />
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="settingsDialog">
+      <form id="settingsForm" method="dialog">
+        <div class="dialog-head">
+          <div>
+            <h2>设置</h2>
+            <p class="dialog-subtitle">配置协议关联、文件保存位置和开发工具。</p>
+          </div>
+          <button type="button" class="icon-button" id="closeSettingsDialogButton" aria-label="关闭" title="关闭设置">×</button>
+        </div>
+
+        <div class="settings-list">
+          <label class="setting-toggle">
+            <input id="associateProtocolInput" type="checkbox" />
+            <span>
+              <strong>将该应用关联 URL 快捷方式 booth-library-manager://</strong>
+              <small>勾选后，本应用每次启动都会重新注册该 URL 协议。</small>
+            </span>
+          </label>
+
+          <div class="setting-field">
+            <div>
+              <strong>文件下载保存目录</strong>
+              <small>所有 BOOTH 下载的统一根目录；商品文件将保存到 b + item_id 子目录，例如 b7903171。</small>
+            </div>
+            <div class="path-picker-row">
+              <input id="downloadDirectoryInput" placeholder="请选择统一下载根目录" />
+              <button type="button" class="secondary" id="pickDownloadDirectoryButton">选择</button>
+            </div>
+          </div>
+
+          <label class="setting-toggle">
+            <input id="allowDevToolsInput" type="checkbox" />
+            <span>
+              <strong>允许打开 DevTools</strong>
+              <small>启用后可使用 F12 或 Ctrl+Shift+I 打开开发者工具。</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <span></span>
+          <div>
+            <button type="button" class="secondary" id="cancelSettingsButton">取消</button>
+            <button class="primary" id="saveSettingsButton">保存</button>
           </div>
         </div>
       </form>

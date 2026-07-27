@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld("itemManager", {
   pickLocalPath(kind) {
     return ipcRenderer.invoke("pick-local-path", kind);
   },
+  applyDesktopSettings(settings) {
+    return ipcRenderer.invoke("apply-desktop-settings", settings);
+  },
   pickScreenColor() {
     return ipcRenderer.invoke("pick-screen-color");
   },

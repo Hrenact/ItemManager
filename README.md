@@ -40,3 +40,11 @@ npm run dist
 ```
 
 The build is written to `release/`. Its archive is stored in a `data/` folder beside the generated `.exe`; an existing folder is never overwritten. The initial `data/` folder from this project is copied there on first launch, so `items.json`, `tags.json`, `settings.json`, and cover images remain portable with the application.
+
+The Settings button in the lower-left corner controls URL protocol association, the BOOTH download root directory, and DevTools access. When URL association is enabled, the packaged Electron app registers the `booth-library-manager://` protocol every time it starts; development mode never replaces the packaged app's registration. BOOTH item files use a `b<item_id>` folder beneath the configured download root, such as `b7903171`.
+
+After enabling URL association, open the following URL in a browser to start or focus the app:
+
+```text
+booth-library-manager://ItemManager/OpenApp
+```

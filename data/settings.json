@@ -1,4 +1,7 @@
 {
   "coverRatio": "1 / 1",
-  "cardSize": "280px"
+  "cardSize": "280px",
+  "associateProtocol": false,
+  "downloadDirectory": "",
+  "allowDevTools": false
 }

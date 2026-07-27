@@ -26,6 +26,14 @@
     "productName": "Item Manager",
     "electronDist": "node_modules/electron/dist",
     "afterPack": "build/after-pack.js",
+    "protocols": [
+      {
+        "name": "Booth Library Manager",
+        "schemes": [
+          "booth-library-manager"
+        ]
+      }
+    ],
     "electronLanguages": [
       "en-US",
       "zh-CN"

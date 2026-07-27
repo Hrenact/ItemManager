@@ -284,30 +284,11 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: auto;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px 14px;
-}
-
-.sidebar-footer {
-  display: grid;
-  gap: 10px;
-  margin-top: auto;
-}
-
-.settings-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 38px;
-}
-
-.settings-button span {
-  color: var(--accent);
-  font-size: 16px;
 }
 
 .stats strong {
@@ -719,10 +700,6 @@ dialog[open] {
   width: min(430px, calc(100vw - 28px));
 }
 
-#settingsDialog {
-  width: min(620px, calc(100vw - 28px));
-}
-
 #boothLoadingDialog {
   width: min(440px, calc(100vw - 28px));
 }
@@ -757,74 +734,6 @@ form {
   grid-template-columns: repeat(12, minmax(0, 1fr));
   column-gap: 14px;
   row-gap: 16px;
-}
-
-.dialog-subtitle {
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.settings-list {
-  display: grid;
-  gap: 12px;
-}
-
-.setting-toggle,
-.setting-field {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #0d1017;
-  padding: 14px;
-}
-
-.setting-toggle {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.setting-toggle input {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  margin: 2px 0 0;
-  accent-color: var(--accent);
-}
-
-.setting-toggle span,
-.setting-field > div:first-child {
-  display: grid;
-  gap: 5px;
-}
-
-.setting-toggle strong,
-.setting-field strong {
-  color: var(--text);
-  font-size: 14px;
-}
-
-.setting-toggle small,
-.setting-field small {
-  color: var(--muted);
-  line-height: 1.5;
-}
-
-.setting-field {
-  display: grid;
-  gap: 12px;
-}
-
-.path-picker-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 76px;
-  gap: 8px;
-}
-
-.path-picker-row .secondary {
-  min-height: 42px;
-  padding: 0 12px;
 }
 
 .title-field {
