@@ -8,6 +8,7 @@ const state = {
   items: [],
   tags: [],
   settings: null,
+  downloadJobs: new Map(),
   editingId: null,
   editingTagId: null,
   selectedTags: new Set(),
@@ -44,6 +45,7 @@ const colorPopover = $("#colorPopover");
 const colorField = $("#colorField");
 const colorHueRange = $("#colorHueRange");
 const colorPopoverPreview = $("#colorPopoverPreview");
+const colorHexInput = $("#colorHexInput");
 let dragDepth = 0;
 let activeColorInputId = null;
 let activeHsv = { h: 0, s: 0, v: 1 };
@@ -616,7 +618,10 @@ function syncColorSwatches() {
   });
   if (activeColorInputId) {
     const input = $(`#${activeColorInputId}`);
-    colorPopoverPreview.style.backgroundColor = normalizeHexColor(input.value, input.defaultValue || DEFAULT_TAG_COLORS.backgroundColor);
+    const color = normalizeHexColor(input.value, input.defaultValue || DEFAULT_TAG_COLORS.backgroundColor);
+    colorPopoverPreview.style.backgroundColor = color;
+    colorHexInput.value = color;
+    colorHexInput.removeAttribute("aria-invalid");
   }
 }
 
@@ -629,14 +634,18 @@ function setColorValue(targetId, value) {
 
 function closeColorPopover() {
   colorPopover.hidden = true;
+  colorHexInput.removeAttribute("aria-invalid");
   activeColorInputId = null;
 }
 
 function openColorPopover(targetId, anchor) {
   activeColorInputId = targetId;
   const input = $(`#${targetId}`);
-  activeHsv = rgbToHsv(hexToRgb(input.value || input.defaultValue));
+  const color = normalizeHexColor(input.value, input.defaultValue || DEFAULT_TAG_COLORS.backgroundColor);
+  activeHsv = rgbToHsv(hexToRgb(color));
   colorHueRange.value = Math.round(activeHsv.h);
+  colorHexInput.value = color;
+  colorHexInput.removeAttribute("aria-invalid");
   colorPopover.hidden = false;
 
   const rect = anchor.getBoundingClientRect();
@@ -786,6 +795,130 @@ async function saveApplicationSettings() {
   settingsDialog.close();
 }
 
+function formatBytes(value) {
+  const bytes = Number(value) || 0;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function renderDownloadJobs() {
+  const panel = $("#downloadPanel");
+  const jobs = [...state.downloadJobs.values()];
+  panel.hidden = jobs.length === 0;
+  $("#activeDownloadCount").textContent = String(jobs.filter((job) =>
+    ["started", "downloading", "cancelling", "finalizing"].includes(job.status)
+  ).length);
+  $("#downloadJobs").innerHTML = jobs.map((job) => {
+    const totalBytes = Number(job.totalBytes) || 0;
+    const receivedBytes = Number(job.receivedBytes) || 0;
+    const bytesPerSecond = Number(job.bytesPerSecond) || 0;
+    const percent = totalBytes ? Math.min(100, Math.round((receivedBytes / totalBytes) * 100)) : 0;
+    const isActive = ["started", "downloading", "cancelling", "finalizing"].includes(job.status);
+    const canCancel = ["started", "downloading", "cancelling"].includes(job.status);
+    const speedText = bytesPerSecond ? ` · ${formatBytes(bytesPerSecond)}/s` : "";
+    const statusText = job.status === "completed"
+      ? "下载完成"
+      : job.status === "cancelled"
+        ? "已取消，未完成文件已删除"
+        : job.status === "error"
+          ? job.message || "下载失败"
+          : job.status === "finalizing"
+            ? "正在读取 BOOTH 信息并创建条目…"
+            : job.status === "cancelling"
+              ? "正在取消…"
+              : totalBytes
+                ? `${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)} · ${percent}%${speedText}`
+                : `${formatBytes(receivedBytes)}${speedText} · 正在下载`;
+    return `
+      <div class="download-job" data-job-id="${escapeHtml(job.jobId)}" data-status="${escapeHtml(job.status)}">
+        <div class="download-job-head">
+          <span class="download-job-name" title="${escapeHtml(job.fileName || "")}">${escapeHtml(job.fileName || "BOOTH 下载")}</span>
+          ${canCancel ? `<button type="button" class="download-cancel-button" data-action="cancel-download" ${job.status === "cancelling" ? "disabled" : ""}>取消</button>` : ""}
+        </div>
+        <div class="download-track" aria-hidden="true">
+          <span class="${!totalBytes && isActive ? "indeterminate" : ""}" style="${totalBytes ? `width:${percent}%` : ""}"></span>
+        </div>
+        <p class="download-job-status" title="${escapeHtml(statusText)}">${escapeHtml(statusText)}</p>
+      </div>
+    `;
+  }).join("");
+}
+
+function removeFinishedDownloadLater(jobId) {
+  setTimeout(() => {
+    const job = state.downloadJobs.get(jobId);
+    if (!job || !["completed", "cancelled", "error"].includes(job.status)) return;
+    state.downloadJobs.delete(jobId);
+    renderDownloadJobs();
+  }, 10000);
+}
+
+async function handleItemImportEvent(event) {
+  if (event.type === "started") {
+    state.downloadJobs.set(event.jobId, {
+      ...event,
+      status: "started",
+      receivedBytes: 0,
+      totalBytes: 0
+    });
+    renderDownloadJobs();
+    return;
+  }
+
+  if (event.type === "progress") {
+    const job = state.downloadJobs.get(event.jobId);
+    if (!job) return;
+    Object.assign(job, event, { status: "downloading" });
+    renderDownloadJobs();
+    return;
+  }
+
+  if (event.type === "finalizing") {
+    const job = state.downloadJobs.get(event.jobId);
+    if (!job) return;
+    Object.assign(job, event, { status: "finalizing" });
+    renderDownloadJobs();
+    return;
+  }
+
+  if (event.type === "completed") {
+    const job = state.downloadJobs.get(event.jobId);
+    if (job) {
+      Object.assign(job, event, { status: "completed" });
+      renderDownloadJobs();
+      removeFinishedDownloadLater(event.jobId);
+    }
+    await loadData();
+    if (event.warning) await notify(event.warning);
+    return;
+  }
+
+  if (event.type === "cancelled") {
+    const job = state.downloadJobs.get(event.jobId);
+    if (job) {
+      Object.assign(job, event, { status: "cancelled" });
+      renderDownloadJobs();
+      removeFinishedDownloadLater(event.jobId);
+    }
+    return;
+  }
+
+  if (event.type === "error") {
+    const job = event.jobId ? state.downloadJobs.get(event.jobId) : null;
+    if (job) {
+      Object.assign(job, event, { status: "error" });
+      renderDownloadJobs();
+      removeFinishedDownloadLater(event.jobId);
+    }
+    await notify(event.message || "无法处理 BOOTH 下载。");
+    if (["DOWNLOAD_DIRECTORY_REQUIRED", "DOWNLOAD_DIRECTORY_UNAVAILABLE"].includes(event.code) && !settingsDialog.open) {
+      openSettings();
+    }
+  }
+}
+
 async function loadData() {
   const [items, tags, settings] = await Promise.all([
     api("/api/items"),
@@ -825,6 +958,29 @@ settingsForm.addEventListener("submit", async (event) => {
     await saveApplicationSettings();
   } catch (error) {
     await notify(error.message);
+  }
+});
+$("#downloadJobs").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-action='cancel-download']");
+  if (!button) return;
+  const row = button.closest("[data-job-id]");
+  const job = row ? state.downloadJobs.get(row.dataset.jobId) : null;
+  if (!job || !window.itemManager?.cancelItemDownload) return;
+  job.status = "cancelling";
+  renderDownloadJobs();
+  try {
+    const result = await window.itemManager.cancelItemDownload(job.jobId);
+    if (!result.cancelled) {
+      job.status = "error";
+      job.message = "下载任务已结束，无法取消。";
+      renderDownloadJobs();
+      removeFinishedDownloadLater(job.jobId);
+    }
+  } catch (error) {
+    job.status = "error";
+    job.message = error.message || "取消下载失败。";
+    renderDownloadJobs();
+    removeFinishedDownloadLater(job.jobId);
   }
 });
 $("#closeDialogButton").addEventListener("click", () => dialog.close());
@@ -1025,6 +1181,37 @@ colorHueRange.addEventListener("input", () => {
   activeHsv.h = Number(colorHueRange.value);
   setColorValue(activeColorInputId, rgbToHex(hsvToRgb(activeHsv)));
   drawColorField();
+});
+
+function applyColorHexInput() {
+  if (!activeColorInputId) return false;
+  const value = colorHexInput.value.trim();
+  if (!/^#?[0-9a-f]{6}$/i.test(value)) {
+    colorHexInput.setAttribute("aria-invalid", "true");
+    return false;
+  }
+
+  const color = normalizeHexColor(value, "#000000");
+  activeHsv = rgbToHsv(hexToRgb(color));
+  colorHueRange.value = Math.round(activeHsv.h);
+  setColorValue(activeColorInputId, color);
+  drawColorField();
+  return true;
+}
+
+colorHexInput.addEventListener("input", applyColorHexInput);
+
+colorHexInput.addEventListener("blur", () => {
+  if (applyColorHexInput() || !activeColorInputId) return;
+  const input = $(`#${activeColorInputId}`);
+  colorHexInput.value = normalizeHexColor(input.value, input.defaultValue || DEFAULT_TAG_COLORS.backgroundColor);
+  colorHexInput.removeAttribute("aria-invalid");
+});
+
+colorHexInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  if (applyColorHexInput()) colorHexInput.select();
 });
 
 document.addEventListener("keydown", (event) => {
@@ -1229,7 +1416,14 @@ grid.addEventListener("click", async (event) => {
 initCustomSelects();
 applyViewSettings(loadLocalViewSettings());
 updateScrollTopButton();
-loadData().catch((error) => {
+if (window.itemManager?.onItemImportEvent) {
+  window.itemManager.onItemImportEvent((event) => {
+    handleItemImportEvent(event).catch((error) => notify(error.message));
+  });
+}
+loadData().then(() => {
+  window.itemManager?.readyForItemImports?.();
+}).catch((error) => {
   emptyState.classList.add("visible");
   emptyState.innerHTML = `<h3>加载失败</h3><p>${escapeHtml(error.message)}</p>`;
 });

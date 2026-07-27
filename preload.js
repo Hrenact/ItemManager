@@ -10,6 +10,17 @@ contextBridge.exposeInMainWorld("itemManager", {
   applyDesktopSettings(settings) {
     return ipcRenderer.invoke("apply-desktop-settings", settings);
   },
+  onItemImportEvent(callback) {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("item-import-event", listener);
+    return () => ipcRenderer.removeListener("item-import-event", listener);
+  },
+  readyForItemImports() {
+    ipcRenderer.send("item-import-renderer-ready");
+  },
+  cancelItemDownload(jobId) {
+    return ipcRenderer.invoke("cancel-item-download", jobId);
+  },
   pickScreenColor() {
     return ipcRenderer.invoke("pick-screen-color");
   },

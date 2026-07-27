@@ -49,6 +49,7 @@ const MIME = {
 };
 const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]);
 const importJobs = new Map();
+let itemMutationQueue = Promise.resolve();
 const BOOTH_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36";
 
 async function ensureStore() {
@@ -93,6 +94,12 @@ async function readItems() {
 
 async function writeItems(items) {
   await fsp.writeFile(DB_FILE, `${JSON.stringify(items, null, 2)}\n`, "utf8");
+}
+
+function queueItemMutation(task) {
+  const result = itemMutationQueue.then(task);
+  itemMutationQueue = result.catch(() => {});
+  return result;
 }
 
 async function readTags() {
@@ -169,6 +176,9 @@ function cleanItem(input, existing = {}) {
     coverMode: input.coverMode === "url" ? "url" : "local",
     coverUrl: String(input.coverUrl || "").trim(),
     coverPath: String(input.coverPath || "").trim(),
+    boothItemId: String(input.boothItemId || existing.boothItemId || "").trim(),
+    boothOrderId: String(input.boothOrderId || existing.boothOrderId || "").trim(),
+    boothVariationId: String(input.boothVariationId || existing.boothVariationId || "").trim(),
     createdAt: existing.createdAt || now,
     updatedAt: now
   };
@@ -377,6 +387,88 @@ function startImportJob(rootPath) {
   return job;
 }
 
+function boothItemIdFromItem(item) {
+  const explicitId = String(item.boothItemId || "").trim();
+  if (/^\d{1,12}$/.test(explicitId)) return explicitId;
+
+  const urlMatch = String(item.url || "").match(/\/items\/(\d{1,12})(?:[/?#]|$)/i);
+  if (urlMatch) return urlMatch[1];
+
+  const pathParts = path.resolve(String(item.localPath || ".")).split(/[\\/]/).reverse();
+  const folderMatch = pathParts.find((part) => /^b\d{1,12}$/i.test(part));
+  return folderMatch ? folderMatch.slice(1) : "";
+}
+
+async function createBoothDownloadItem(input) {
+  const itemId = String(input.itemId || "").trim();
+  const orderId = String(input.orderId || "").trim();
+  const variationId = String(input.variationId || "").trim();
+  const localPath = path.resolve(String(input.localPath || ""));
+  const fileName = path.basename(String(input.fileName || localPath));
+
+  if (!/^\d{1,12}$/.test(itemId)) throw new Error("Invalid BOOTH item ID.");
+
+  const settings = await readSettings();
+  if (!settings.downloadDirectory) throw new Error("Download directory is not configured.");
+
+  const expectedDirectory = path.resolve(settings.downloadDirectory, `b${itemId}`);
+  if (path.dirname(localPath).toLocaleLowerCase() !== expectedDirectory.toLocaleLowerCase()) {
+    throw new Error("Downloaded file is outside the configured BOOTH item directory.");
+  }
+
+  const stat = await fsp.stat(localPath);
+  if (!stat.isFile()) throw new Error("Downloaded path is not a file.");
+
+  const existingItems = await readItems();
+  const existingItem = existingItems.find((item) => boothItemIdFromItem(item) === itemId);
+  if (existingItem) {
+    return {
+      item: existingItem,
+      skipped: true,
+      message: "已存在相同条目，跳过创建",
+      metadataWarning: ""
+    };
+  }
+
+  let boothItem = null;
+  let metadataWarning = "";
+  try {
+    boothItem = await scrapeBoothItem(itemId);
+  } catch (error) {
+    metadataWarning = error.message || "Unable to load BOOTH item metadata.";
+  }
+
+  return queueItemMutation(async () => {
+    const items = await readItems();
+    const duplicate = items.find((item) => boothItemIdFromItem(item) === itemId);
+    if (duplicate) {
+      return {
+        item: duplicate,
+        skipped: true,
+        message: "已存在相同条目，跳过创建",
+        metadataWarning: ""
+      };
+    }
+
+    const usedTitles = new Set(items.map((item) => titleKey(item.title)));
+    const fallbackTitle = path.parse(fileName).name || `BOOTH ${itemId}`;
+    const item = cleanItem({
+      title: uniqueTitle(boothItem?.title || fallbackTitle, usedTitles),
+      creator: boothItem?.creator || "",
+      url: boothItem?.url || `https://booth.pm/zh-cn/items/${itemId}`,
+      localPath: expectedDirectory,
+      coverMode: "url",
+      coverUrl: boothItem?.coverUrl || "",
+      boothItemId: itemId,
+      boothOrderId: orderId,
+      boothVariationId: variationId
+    });
+    items.push(item);
+    await writeItems(items);
+    return { item, skipped: false, message: "", metadataWarning };
+  });
+}
+
 function cleanTag(input, existing = {}) {
   const now = new Date().toISOString();
   return {
@@ -468,6 +560,14 @@ async function handleApi(req, res, url) {
         return send(res, 200, await scrapeBoothItem(itemId));
       } catch (error) {
         return send(res, 502, { error: error.message || "无法读取 Booth 商品信息。" });
+      }
+    }
+
+    if (url.pathname === "/api/booth-download-complete" && req.method === "POST") {
+      try {
+        return send(res, 201, await createBoothDownloadItem(await readJson(req)));
+      } catch (error) {
+        return send(res, 400, { error: error.message || "Unable to create downloaded BOOTH item." });
       }
     }
 

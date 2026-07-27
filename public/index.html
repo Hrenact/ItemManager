@@ -46,6 +46,14 @@
           <div class="sidebar-tags" id="sidebarTags"></div>
         </section>
 
+        <section class="download-panel" id="downloadPanel" aria-live="polite" hidden>
+          <div class="download-panel-head">
+            <h2>下载</h2>
+            <span id="activeDownloadCount">0</span>
+          </div>
+          <div class="download-jobs" id="downloadJobs"></div>
+        </section>
+
         <div class="sidebar-footer">
           <div class="stats">
             <span>条目</span>
@@ -242,6 +250,19 @@
             <span class="color-popover-swatch" id="colorPopoverPreview" title="当前颜色"></span>
             <input id="colorHueRange" class="hue-slider" type="range" min="0" max="360" value="0" title="调整色相" />
           </div>
+          <label class="color-value-field">
+            <span>色值</span>
+            <input
+              id="colorHexInput"
+              type="text"
+              inputmode="text"
+              maxlength="7"
+              placeholder="#RRGGBB"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="颜色十六进制色值"
+            />
+          </label>
         </div>
       </form>
     </dialog>
@@ -268,7 +289,7 @@
           <div class="setting-field">
             <div>
               <strong>文件下载保存目录</strong>
-              <small>所有 BOOTH 下载的统一根目录；商品文件将保存到 b + item_id 子目录，例如 b7903171。</small>
+              <small>所有 BOOTH 下载的统一根目录；商品文件将保存到 b + item_id 子目录，例如 b6306337。</small>
             </div>
             <div class="path-picker-row">
               <input id="downloadDirectoryInput" placeholder="请选择统一下载根目录" />
