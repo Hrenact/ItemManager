@@ -261,6 +261,61 @@ async function createWindow() {
   });
 
   await window.loadURL(`http://127.0.0.1:${started.port}`);
+
+  let devToolsWindow = null;
+
+  function closeDevTools() {
+    if (!window.isDestroyed() && window.webContents.isDevToolsOpened()) {
+      window.webContents.closeDevTools();
+    }
+    if (devToolsWindow && !devToolsWindow.isDestroyed()) {
+      devToolsWindow.destroy();
+    }
+    devToolsWindow = null;
+  }
+
+  function handleDevToolsShortcut(event, input) {
+    if (input.type !== "keyDown" || input.key !== "F12" || input.isAutoRepeat) return;
+
+    event.preventDefault();
+    if (devToolsWindow && !devToolsWindow.isDestroyed()) {
+      closeDevTools();
+    } else {
+      openDevTools();
+    }
+  }
+
+  function openDevTools() {
+    const toolsWindow = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      minWidth: 760,
+      minHeight: 480,
+      show: false,
+      autoHideMenuBar: true,
+      backgroundColor: "#ffffff"
+    });
+    devToolsWindow = toolsWindow;
+
+    toolsWindow.webContents.on("before-input-event", handleDevToolsShortcut);
+    toolsWindow.once("ready-to-show", () => {
+      if (toolsWindow.isDestroyed()) return;
+      toolsWindow.show();
+      toolsWindow.focus();
+    });
+    toolsWindow.on("closed", () => {
+      if (devToolsWindow === toolsWindow) devToolsWindow = null;
+      if (!window.isDestroyed() && window.webContents.isDevToolsOpened()) {
+        window.webContents.closeDevTools();
+      }
+    });
+
+    window.webContents.setDevToolsWebContents(toolsWindow.webContents);
+    window.webContents.openDevTools({ mode: "detach", activate: true });
+  }
+
+  window.webContents.on("before-input-event", handleDevToolsShortcut);
+  window.once("closed", closeDevTools);
 }
 
 configurePortableProfile();
