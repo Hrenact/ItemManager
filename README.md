@@ -272,5 +272,3 @@ release\Item Manager-<版本号>-win.zip
 3. 检查新增、编辑、标签、设置和本地路径等基本功能。
 4. 使用 `booth-library-manager://ItemManager/OpenApp` 验证协议唤醒。
 5. 使用测试链接验证正常下载、取消、重复文件名、重复条目和失败清理。
-
-项目当前标记为 `UNLICENSED`。分发修改版或将代码用于其他项目之前，请先确认已获得相应授权。

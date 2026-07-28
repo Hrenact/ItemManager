@@ -51,6 +51,7 @@ const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "imag
 const importJobs = new Map();
 let itemMutationQueue = Promise.resolve();
 const BOOTH_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36";
+let boothFetch = globalThis.fetch;
 
 async function ensureStore() {
   await fsp.mkdir(DATA_DIR, { recursive: true });
@@ -270,7 +271,7 @@ async function scrapeBoothItem(itemId) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     try {
-      const response = await fetch(`https://booth.pm/${locale}/items/${normalizedId}.json`, {
+      const response = await boothFetch(`https://booth.pm/${locale}/items/${normalizedId}.json`, {
         headers: {
           "User-Agent": BOOTH_USER_AGENT,
           "Accept-Language": "zh-CN,zh;q=0.9,ja;q=0.8",
@@ -791,7 +792,10 @@ function createAppServer() {
   return server;
 }
 
-async function startServer(port = PORT) {
+async function startServer(port = PORT, options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  if (typeof fetchImpl !== "function") throw new TypeError("A fetch implementation is required.");
+  boothFetch = fetchImpl;
   await ensureStore();
   const server = createAppServer();
 

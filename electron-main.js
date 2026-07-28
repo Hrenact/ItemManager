@@ -1,4 +1,4 @@
-const { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen } = require("electron");
+const { app, BrowserWindow, desktopCapturer, dialog, ipcMain, net, screen } = require("electron");
 const crypto = require("crypto");
 const fs = require("fs");
 const fsp = require("fs/promises");
@@ -229,7 +229,7 @@ async function reserveDownloadDestination(directory, fileName) {
 async function fetchBoothDownload(initialUrl, signal) {
   let target = initialUrl;
   for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
-    const response = await fetch(target, { redirect: "manual", signal });
+    const response = await net.fetch(target, { redirect: "manual", signal });
     if (response.status < 300 || response.status >= 400) return response;
 
     const location = response.headers.get("location");
@@ -709,7 +709,9 @@ async function createWindow() {
   process.env.ITEM_MANAGER_DATA_DIR = dataDirectory;
 
   const { startServer } = require("./server");
-  const started = await startServer(0);
+  const started = await startServer(0, {
+    fetchImpl: (input, init) => net.fetch(input, init)
+  });
   server = started.server;
   serverOrigin = `http://127.0.0.1:${started.port}`;
 
