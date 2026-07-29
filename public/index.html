@@ -21,38 +21,46 @@
           <button class="primary" id="newItemButton" title="添加新的收藏条目">+ 新建条目</button>
           <button class="secondary" id="importFolderButton" title="选择文件夹并导入其第一层文件和文件夹">导入</button>
         </div>
-        <div class="import-progress" id="importProgress" hidden>
-          <div class="import-progress-head">
-            <span id="importProgressTitle">正在导入</span>
-            <strong id="importProgressCount">0</strong>
-          </div>
-          <div class="import-progress-track" aria-hidden="true">
-            <span id="importProgressBar"></span>
-          </div>
-          <p id="importProgressText">准备中...</p>
-        </div>
-        <button class="secondary sidebar-action" id="manageTagsButton" title="打开标签管理器">新建/编辑标签</button>
-
-        <label class="search">
-          <span>搜索</span>
-          <input id="searchInput" type="search" placeholder="名称、作者、标签、备注" title="按名称、作者、标签或备注搜索" />
-        </label>
-
+        <div class="sidebar-workspace-frame">
+        <div class="sidebar-workspace">
         <section class="tag-panel">
           <div class="label-row">
             <h2>标签</h2>
-            <button type="button" class="text-button" id="clearTagFiltersButton" title="清除所有标签筛选">清除</button>
+            <div class="tag-panel-actions">
+              <button type="button" class="text-button" id="clearTagFiltersButton" title="清除所有标签筛选">清除</button>
+              <button type="button" class="secondary tag-manage-button" id="manageTagsButton" title="打开标签管理器">管理</button>
+            </div>
           </div>
           <div class="sidebar-tags" id="sidebarTags"></div>
         </section>
 
-        <section class="download-panel" id="downloadPanel" aria-live="polite" hidden>
-          <div class="download-panel-head">
-            <h2>下载</h2>
-            <span id="activeDownloadCount">0</span>
+        <section class="task-panel" aria-live="polite">
+          <div class="label-row">
+            <h2>任务</h2>
+            <button type="button" class="secondary tag-manage-button" id="clearCompletedTasksButton" title="清空已成功完成的任务" disabled>清空</button>
           </div>
-          <div class="download-jobs" id="downloadJobs"></div>
+          <div class="task-list">
+            <p class="section-empty" id="taskEmptyState">暂无任务</p>
+            <div class="import-progress" id="importProgress" hidden>
+              <div class="import-progress-head">
+                <span id="importProgressTitle">正在导入</span>
+                <div class="task-item-actions">
+                  <strong id="importProgressCount">0</strong>
+                  <button type="button" class="task-dismiss-button" id="dismissImportProgressButton" title="关闭导入任务" aria-label="关闭导入任务" hidden>×</button>
+                </div>
+              </div>
+              <div class="import-progress-track" aria-hidden="true">
+                <span id="importProgressBar"></span>
+              </div>
+              <p id="importProgressText">准备中...</p>
+            </div>
+            <div class="download-panel" id="downloadPanel" hidden>
+              <div class="download-jobs" id="downloadJobs"></div>
+            </div>
+          </div>
         </section>
+        </div>
+        </div>
 
         <div class="sidebar-footer">
           <div class="stats">
@@ -68,17 +76,25 @@
 
       <section class="content">
         <header class="toolbar">
-          <div>
-            <h2>收藏库</h2>
-            <p>链接、路径、封面路径和备注都保存在此项目文件夹中。</p>
+          <div class="toolbar-copy">
+            <h2>条目库</h2>
           </div>
+          <label class="toolbar-search">
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="搜索名称、作者、标签或备注"
+              aria-label="搜索条目"
+              title="按名称、作者、标签或备注搜索"
+            />
+          </label>
           <div class="toolbar-controls">
             <div class="select-field">
-              <span>栏目大小</span>
-              <select id="cardSizeSelect" aria-label="栏目大小" title="调整卡片栏目大小">
-                <option value="220px">紧凑</option>
-                <option value="280px">标准</option>
-                <option value="360px">宽松</option>
+              <span>条目大小</span>
+              <select id="cardSizeSelect" aria-label="条目大小" title="调整条目卡片大小">
+                <option value="170px">紧凑</option>
+                <option value="230px">标准</option>
+                <option value="300px">宽松</option>
               </select>
             </div>
             <div class="select-field">
@@ -93,10 +109,7 @@
         </header>
 
         <div class="grid" id="itemsGrid"></div>
-        <div class="empty" id="emptyState">
-          <h3>还没有条目</h3>
-          <p>添加第一个作品、资产、文档或下载项。</p>
-        </div>
+        <div class="empty" id="emptyState" aria-live="polite">暂无条目</div>
         <button type="button" class="scroll-top" id="scrollTopButton" aria-label="返回顶部" title="返回顶部">↑</button>
       </section>
     </main>

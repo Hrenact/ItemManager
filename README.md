@@ -1,13 +1,11 @@
-<p align="center">
-  <img src="image/Icon.png" alt="Item Manager 图标" width="128">
-</p>
-
-# Item Manager
+# 📦 Item Manager
 
 **Item Manager 是一个面向 BOOTH 与 VRChat 创作者的本地资源库管理工具。**
 
 <p align="center">
-  <img src="image/InterfacePreview.png" alt="Item Manager 界面">
+  <img src="image/InterfacePreview.png" alt="Item Manager 界面" width="700">
+  <br>
+  <sub>Item Manager 主界面示例（Build 16 - 0.3.5）</sub>
 </p>
 
 它可以用于整理下载的模型、服装、素材和其他文件，支持封面、作者、标签、备注、网页链接和本地目录等信息。
@@ -48,8 +46,6 @@
 | BOOTH 商品更新通知 | — | ✓ |
 
 ## 下载与安装
-
-### 下载便携版
 
 1. 前往项目的 [Releases](https://github.com/Hrenact/ItemManager/releases) 页面。
 2. 下载最新 build 的 `Item Manager-<版本号>-win.zip`。
@@ -225,6 +221,14 @@ asset (2).zip
 
 分享应用压缩包前，请检查并移除自己的 `data` 文件夹，避免将个人资源库信息一起发送。
 
+## 协议与贡献
+
+Item Manager 基于 **GNU General Public License v3.0** 开源，使用、修改或分发本项目时请遵守许可证条款。详细内容请参阅 `LICENSE` 文件。
+
+项目目前主要由个人维护，暂时不接收 Pull Request。
+
+欢迎通过 [Issues](../../issues) 报告 BUG、提出功能建议，或反馈使用过程中遇到的问题。
+
 ## 常见问题
 
 ### `DL with Booth Library Manager` 打开了其它应用
@@ -275,15 +279,6 @@ BOOTH 下载地址通常是带签名且具有有效期的临时链接。
 
 `Item Manager.exe` 依赖同目录中的 Electron 运行库和资源文件。请保留 ZIP 解压后的完整目录结构。
 
-### 注意事项
-
-- 应用仅接受 HTTPS 的 BOOTH 下载地址，并会检查重定向目标
-- 下载目录被移动、删除或失去写入权限后，需要在设置中重新选择
-- 下载过程中不要移动应用目录或下载根目录
-- DevTools 默认关闭，普通使用时建议保持关闭
-- `npm start` 只提供浏览器界面，不支持系统协议唤醒和完整的 Electron 下载集成
-- 当前尚未实现 BOOTH 商品更新通知
-
 ## 二次开发
 
 ### 环境要求
@@ -307,7 +302,7 @@ npm install
 npm run electron
 ```
 
-# 仅启动本地网页服务
+### 仅启动本地网页服务
 
 ```powershell
 npm start

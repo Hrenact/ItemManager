@@ -12,7 +12,8 @@ async function main() {
         params: {
           expression: `({
             messageOpen: document.querySelector("#messageDialog")?.open || false,
-            message: document.querySelector("#messageBody")?.textContent || ""
+            message: document.querySelector("#messageBody")?.textContent || "",
+            jobStatus: document.querySelector(".download-job-status")?.textContent || ""
           })`,
           returnByValue: true
         }
@@ -27,7 +28,8 @@ async function main() {
     });
     socket.addEventListener("error", () => reject(new Error("CDP connection failed.")));
   });
-  const passed = result?.messageOpen && result.message.includes("已存在相同条目，跳过创建");
+  const passed = !result?.messageOpen &&
+    result?.jobStatus.includes("下载完成，存在相同条目跳过创建");
   console.log(JSON.stringify({ ...result, passed }));
   if (!passed) process.exitCode = 1;
 }

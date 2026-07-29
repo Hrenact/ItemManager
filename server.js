@@ -22,17 +22,22 @@ const DEFAULT_TAG_COLORS = {
 };
 const DEFAULT_SETTINGS = {
   coverRatio: "1 / 1",
-  cardSize: "280px",
+  cardSize: "230px",
   associateProtocol: false,
   downloadDirectory: "",
   allowDevTools: false
 };
 const ALLOWED_COVER_RATIOS = new Set(["1 / 1", "4 / 3", "16 / 9"]);
-const ALLOWED_CARD_SIZES = new Set(["220px", "280px", "360px"]);
+const ALLOWED_CARD_SIZES = new Set(["170px", "230px", "300px"]);
 const LEGACY_COLUMN_SIZES = {
-  small: "220px",
-  medium: "280px",
-  large: "360px"
+  small: "170px",
+  medium: "230px",
+  large: "300px"
+};
+const LEGACY_CARD_SIZES = {
+  "220px": "170px",
+  "280px": "230px",
+  "360px": "300px"
 };
 
 const MIME = {
@@ -113,7 +118,7 @@ async function writeTags(tags) {
 }
 
 function cleanSettings(input = {}) {
-  const legacyCardSize = LEGACY_COLUMN_SIZES[input.columnSize];
+  const legacyCardSize = LEGACY_CARD_SIZES[input.cardSize] || LEGACY_COLUMN_SIZES[input.columnSize];
   const coverRatio = ALLOWED_COVER_RATIOS.has(input.coverRatio)
     ? input.coverRatio
     : DEFAULT_SETTINGS.coverRatio;

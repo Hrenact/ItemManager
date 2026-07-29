@@ -19,7 +19,12 @@ const state = {
 };
 
 const VIEW_SETTINGS_KEY = "item-manager-view-settings";
-const DEFAULT_VIEW_SETTINGS = { coverRatio: "1 / 1", cardSize: "280px" };
+const DEFAULT_VIEW_SETTINGS = { coverRatio: "1 / 1", cardSize: "230px" };
+const CARD_SIZE_MIGRATIONS = {
+  "220px": "170px",
+  "280px": "230px",
+  "360px": "300px"
+};
 const DEFAULT_SETTINGS = {
   ...DEFAULT_VIEW_SETTINGS,
   associateProtocol: false,
@@ -41,6 +46,10 @@ const boothLoadingDialog = $("#boothLoadingDialog");
 const emptyState = $("#emptyState");
 const content = $(".content");
 const scrollTopButton = $("#scrollTopButton");
+const sidebarWorkspace = $(".sidebar-workspace");
+const sidebarWorkspaceFrame = $(".sidebar-workspace-frame");
+const clearCompletedTasksButton = $("#clearCompletedTasksButton");
+const taskEmptyState = $("#taskEmptyState");
 const colorPopover = $("#colorPopover");
 const colorField = $("#colorField");
 const colorHueRange = $("#colorHueRange");
@@ -51,6 +60,8 @@ let activeColorInputId = null;
 let activeHsv = { h: 0, s: 0, v: 1 };
 let isPickingColorField = false;
 let importPollTimer = null;
+let activeImportJob = null;
+let sidebarShadowFrame = null;
 let boothImportTimer = null;
 let draggedTagElement = null;
 let draggedTagPointerId = null;
@@ -142,10 +153,11 @@ async function saveViewSettings() {
 }
 
 function applyViewSettings(settings = DEFAULT_VIEW_SETTINGS) {
+  const cardSize = CARD_SIZE_MIGRATIONS[settings.cardSize] || settings.cardSize || DEFAULT_VIEW_SETTINGS.cardSize;
   $("#coverRatioSelect").value = settings.coverRatio;
-  $("#cardSizeSelect").value = settings.cardSize;
+  $("#cardSizeSelect").value = cardSize;
   document.documentElement.style.setProperty("--cover-ratio", settings.coverRatio);
-  document.documentElement.style.setProperty("--card-min", settings.cardSize);
+  document.documentElement.style.setProperty("--card-min", cardSize);
   syncCustomSelects();
 }
 
@@ -250,6 +262,7 @@ function renderItems() {
   const items = getFilteredItems();
   $("#totalCount").textContent = state.items.length;
   $("#shownCount").textContent = items.length;
+  emptyState.textContent = state.items.length === 0 ? "暂无条目" : "无匹配条目";
   emptyState.classList.toggle("visible", items.length === 0);
   grid.innerHTML = items.map((item) => `
     <article class="card" data-id="${item.id}" title="编辑 ${escapeHtml(item.title)}">
@@ -278,8 +291,9 @@ function renderSidebarTags() {
         ${escapeHtml(tag.name)}
       </label>
     `).join("")
-    : `<span class="muted">暂无标签</span>`;
+    : `<span class="section-empty">暂无标签</span>`;
   $("#clearTagFiltersButton").hidden = state.activeTagFilters.size === 0;
+  queueSidebarScrollShadows();
 }
 
 function renderTagPicker() {
@@ -303,7 +317,7 @@ function renderTagManager() {
         <span class="tag" style="${tagStyle(tag.name)}" title="标签：${escapeHtml(tag.name)}">${escapeHtml(tag.name)}</span>
       </button>
     `).join("")
-    : `<p class="muted">暂无标签</p>`;
+    : "";
   updateTagPreview();
 }
 
@@ -472,6 +486,33 @@ function randomHex() {
 
 function updateScrollTopButton() {
   scrollTopButton.classList.toggle("visible", content.scrollTop > 0);
+}
+
+function updateSidebarScrollShadows() {
+  if (!sidebarWorkspace || !sidebarWorkspaceFrame) return;
+  const maxScrollTop = Math.max(0, sidebarWorkspace.scrollHeight - sidebarWorkspace.clientHeight);
+  sidebarWorkspaceFrame.classList.toggle("can-scroll-up", sidebarWorkspace.scrollTop > 1);
+  sidebarWorkspaceFrame.classList.toggle("can-scroll-down", sidebarWorkspace.scrollTop < maxScrollTop - 1);
+}
+
+function queueSidebarScrollShadows() {
+  if (sidebarShadowFrame !== null) cancelAnimationFrame(sidebarShadowFrame);
+  sidebarShadowFrame = requestAnimationFrame(() => {
+    sidebarShadowFrame = null;
+    updateSidebarScrollShadows();
+  });
+}
+
+function isClearableCompletedDownload(job) {
+  return job.status === "completed" && job.completionHasError !== true;
+}
+
+function updateClearCompletedTasksButton() {
+  const hasVisibleImport = !$("#importProgress").hidden;
+  taskEmptyState.hidden = hasVisibleImport || state.downloadJobs.size > 0;
+  const hasCompletedImport = activeImportJob?.status === "complete";
+  const hasCompletedDownload = [...state.downloadJobs.values()].some(isClearableCompletedDownload);
+  clearCompletedTasksButton.disabled = !hasCompletedImport && !hasCompletedDownload;
 }
 
 function isAnyDialogOpen() {
@@ -707,12 +748,15 @@ async function pickPath(kind, targetSelector = "#pathInput") {
 }
 
 function updateImportProgress(job) {
+  activeImportJob = { ...job };
   const panel = $("#importProgress");
   const bar = $("#importProgressBar");
   const title = $("#importProgressTitle");
   const count = $("#importProgressCount");
   const text = $("#importProgressText");
+  const dismissButton = $("#dismissImportProgressButton");
   const isRunning = job.status === "queued" || job.status === "running";
+  const isFinished = job.status === "complete" || job.status === "error";
   const percent = job.status === "complete"
     ? 100
     : job.discovered
@@ -729,7 +773,10 @@ function updateImportProgress(job) {
     : job.status === "complete"
       ? `已创建 ${job.created} 个条目，跳过 ${job.skipped} 个。`
       : `正在导入第一层：已处理 ${job.processed}/${job.discovered}，${job.currentPath || "准备中..."}`;
+  dismissButton.hidden = !isFinished;
   $("#importFolderButton").disabled = isRunning;
+  updateClearCompletedTasksButton();
+  queueSidebarScrollShadows();
 }
 
 async function pollImportJob(id) {
@@ -748,6 +795,13 @@ async function pollImportJob(id) {
     importPollTimer = setTimeout(() => pollImportJob(id), 450);
   } catch (error) {
     $("#importFolderButton").disabled = false;
+    if (activeImportJob) {
+      updateImportProgress({
+        ...activeImportJob,
+        status: "error",
+        error: error.message || "读取导入进度失败。"
+      });
+    }
     await notify(error.message);
   }
 }
@@ -803,13 +857,33 @@ function formatBytes(value) {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+function formatDownloadCompletionStatus(warning) {
+  const message = String(warning || "").trim().replace(/[。.]$/, "");
+  if (!message) return "下载完成";
+  if (message.includes("存在相同条目") && message.includes("跳过创建")) {
+    return "下载完成，存在相同条目跳过创建";
+  }
+  if (message.startsWith("文件已下载，但")) {
+    return `下载完成，${message.slice("文件已下载，".length)}`;
+  }
+  return `下载完成，${message}`;
+}
+
+function updateDownloadStatusOverflow() {
+  document.querySelectorAll(".download-job-status").forEach((status) => {
+    const text = status.querySelector("span");
+    if (!text) return;
+    const distance = Math.max(0, text.scrollWidth - status.clientWidth);
+    status.classList.toggle("is-overflowing", distance > 0);
+    status.style.setProperty("--status-scroll-distance", `${distance}px`);
+    status.style.setProperty("--status-scroll-duration", `${Math.max(6, distance / 18)}s`);
+  });
+}
+
 function renderDownloadJobs() {
   const panel = $("#downloadPanel");
   const jobs = [...state.downloadJobs.values()];
   panel.hidden = jobs.length === 0;
-  $("#activeDownloadCount").textContent = String(jobs.filter((job) =>
-    ["started", "downloading", "cancelling", "finalizing"].includes(job.status)
-  ).length);
   $("#downloadJobs").innerHTML = jobs.map((job) => {
     const totalBytes = Number(job.totalBytes) || 0;
     const receivedBytes = Number(job.receivedBytes) || 0;
@@ -817,13 +891,14 @@ function renderDownloadJobs() {
     const percent = totalBytes ? Math.min(100, Math.round((receivedBytes / totalBytes) * 100)) : 0;
     const isActive = ["started", "downloading", "cancelling", "finalizing"].includes(job.status);
     const canCancel = ["started", "downloading", "cancelling"].includes(job.status);
+    const canDismiss = ["completed", "cancelled", "error"].includes(job.status);
     const speedText = bytesPerSecond ? ` · ${formatBytes(bytesPerSecond)}/s` : "";
     const statusText = job.status === "completed"
-      ? "下载完成"
+      ? job.statusMessage || "下载完成"
       : job.status === "cancelled"
         ? "已取消，未完成文件已删除"
         : job.status === "error"
-          ? job.message || "下载失败"
+          ? job.statusMessage || job.message || "下载失败"
           : job.status === "finalizing"
             ? "正在读取 BOOTH 信息并创建条目…"
             : job.status === "cancelling"
@@ -836,23 +911,18 @@ function renderDownloadJobs() {
         <div class="download-job-head">
           <span class="download-job-name" title="${escapeHtml(job.fileName || "")}">${escapeHtml(job.fileName || "BOOTH 下载")}</span>
           ${canCancel ? `<button type="button" class="download-cancel-button" data-action="cancel-download" ${job.status === "cancelling" ? "disabled" : ""}>取消</button>` : ""}
+          ${canDismiss ? `<button type="button" class="task-dismiss-button" data-action="dismiss-download" title="关闭下载任务" aria-label="关闭下载任务">×</button>` : ""}
         </div>
         <div class="download-track" aria-hidden="true">
           <span class="${!totalBytes && isActive ? "indeterminate" : ""}" style="${totalBytes ? `width:${percent}%` : ""}"></span>
         </div>
-        <p class="download-job-status" title="${escapeHtml(statusText)}">${escapeHtml(statusText)}</p>
+        <p class="download-job-status" title="${escapeHtml(statusText)}"><span>${escapeHtml(statusText)}</span></p>
       </div>
     `;
   }).join("");
-}
-
-function removeFinishedDownloadLater(jobId) {
-  setTimeout(() => {
-    const job = state.downloadJobs.get(jobId);
-    if (!job || !["completed", "cancelled", "error"].includes(job.status)) return;
-    state.downloadJobs.delete(jobId);
-    renderDownloadJobs();
-  }, 10000);
+  updateDownloadStatusOverflow();
+  updateClearCompletedTasksButton();
+  queueSidebarScrollShadows();
 }
 
 async function handleItemImportEvent(event) {
@@ -886,12 +956,13 @@ async function handleItemImportEvent(event) {
   if (event.type === "completed") {
     const job = state.downloadJobs.get(event.jobId);
     if (job) {
-      Object.assign(job, event, { status: "completed" });
+      Object.assign(job, event, {
+        status: "completed",
+        statusMessage: formatDownloadCompletionStatus(event.warning)
+      });
       renderDownloadJobs();
-      removeFinishedDownloadLater(event.jobId);
     }
     await loadData();
-    if (event.warning) await notify(event.warning);
     return;
   }
 
@@ -900,19 +971,25 @@ async function handleItemImportEvent(event) {
     if (job) {
       Object.assign(job, event, { status: "cancelled" });
       renderDownloadJobs();
-      removeFinishedDownloadLater(event.jobId);
     }
     return;
   }
 
   if (event.type === "error") {
-    const job = event.jobId ? state.downloadJobs.get(event.jobId) : null;
-    if (job) {
-      Object.assign(job, event, { status: "error" });
-      renderDownloadJobs();
-      removeFinishedDownloadLater(event.jobId);
-    }
-    await notify(event.message || "无法处理 BOOTH 下载。");
+    const jobId = event.jobId || `download-error-${Date.now()}-${state.downloadJobs.size}`;
+    const job = state.downloadJobs.get(jobId) || {
+      jobId,
+      fileName: event.fileName || "BOOTH 下载",
+      receivedBytes: 0,
+      totalBytes: 0
+    };
+    Object.assign(job, event, {
+      jobId,
+      status: "error",
+      statusMessage: event.message || "无法处理 BOOTH 下载。"
+    });
+    state.downloadJobs.set(jobId, job);
+    renderDownloadJobs();
     if (["DOWNLOAD_DIRECTORY_REQUIRED", "DOWNLOAD_DIRECTORY_UNAVAILABLE"].includes(event.code) && !settingsDialog.open) {
       openSettings();
     }
@@ -961,11 +1038,18 @@ settingsForm.addEventListener("submit", async (event) => {
   }
 });
 $("#downloadJobs").addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-action='cancel-download']");
+  const button = event.target.closest("[data-action]");
   if (!button) return;
   const row = button.closest("[data-job-id]");
   const job = row ? state.downloadJobs.get(row.dataset.jobId) : null;
-  if (!job || !window.itemManager?.cancelItemDownload) return;
+  if (!job) return;
+  if (button.dataset.action === "dismiss-download") {
+    if (!["completed", "cancelled", "error"].includes(job.status)) return;
+    state.downloadJobs.delete(job.jobId);
+    renderDownloadJobs();
+    return;
+  }
+  if (button.dataset.action !== "cancel-download" || !window.itemManager?.cancelItemDownload) return;
   job.status = "cancelling";
   renderDownloadJobs();
   try {
@@ -974,14 +1058,34 @@ $("#downloadJobs").addEventListener("click", async (event) => {
       job.status = "error";
       job.message = "下载任务已结束，无法取消。";
       renderDownloadJobs();
-      removeFinishedDownloadLater(job.jobId);
     }
   } catch (error) {
     job.status = "error";
     job.message = error.message || "取消下载失败。";
     renderDownloadJobs();
-    removeFinishedDownloadLater(job.jobId);
   }
+});
+clearCompletedTasksButton.addEventListener("click", () => {
+  if (activeImportJob?.status === "complete") {
+    activeImportJob = null;
+    $("#importProgress").hidden = true;
+  }
+  state.downloadJobs.forEach((job, jobId) => {
+    if (isClearableCompletedDownload(job)) state.downloadJobs.delete(jobId);
+  });
+  renderDownloadJobs();
+});
+$("#dismissImportProgressButton").addEventListener("click", () => {
+  if (!activeImportJob || !["complete", "error"].includes(activeImportJob.status)) return;
+  activeImportJob = null;
+  $("#importProgress").hidden = true;
+  updateClearCompletedTasksButton();
+  queueSidebarScrollShadows();
+});
+sidebarWorkspace.addEventListener("scroll", updateSidebarScrollShadows, { passive: true });
+window.addEventListener("resize", () => {
+  updateDownloadStatusOverflow();
+  queueSidebarScrollShadows();
 });
 $("#closeDialogButton").addEventListener("click", () => dialog.close());
 $("#closeTagDialogButton").addEventListener("click", () => tagDialog.close());
@@ -1416,6 +1520,7 @@ grid.addEventListener("click", async (event) => {
 initCustomSelects();
 applyViewSettings(loadLocalViewSettings());
 updateScrollTopButton();
+queueSidebarScrollShadows();
 if (window.itemManager?.onItemImportEvent) {
   window.itemManager.onItemImportEvent((event) => {
     handleItemImportEvent(event).catch((error) => notify(error.message));

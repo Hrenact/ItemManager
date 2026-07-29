@@ -351,12 +351,14 @@ async function startItemImport(rawUrl) {
 
     let itemResult = null;
     let itemWarning = "";
+    let completionHasError = false;
     try {
       itemResult = await createDownloadedItem(importRequest, destination.path);
       itemWarning = itemResult.skipped
         ? itemResult.message || "已存在相同条目，跳过创建"
         : itemResult.metadataWarning || "";
     } catch (error) {
+      completionHasError = true;
       itemWarning = `文件已下载，但自动创建条目失败：${error.message}`;
     }
 
@@ -365,7 +367,8 @@ async function startItemImport(rawUrl) {
       jobId,
       destinationPath: destination.path,
       item: itemResult?.item || null,
-      warning: itemWarning
+      warning: itemWarning,
+      completionHasError
     });
   } catch (error) {
     controller.abort();

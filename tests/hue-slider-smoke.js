@@ -10,11 +10,28 @@ async function main() {
         id: 1,
         method: "Runtime.evaluate",
         params: {
-          expression: `({
-            messageOpen: document.querySelector("#messageDialog")?.open || false,
-            message: document.querySelector("#messageBody")?.textContent || "",
-            jobStatus: document.querySelector(".download-job-status")?.textContent || ""
-          })`,
+          expression: `(() => {
+            const gradient = getComputedStyle(document.querySelector("#colorHueRange")).backgroundImage;
+            const expected = [
+              "rgb(255, 0, 0)",
+              "rgb(255, 255, 0)",
+              "rgb(0, 255, 0)",
+              "rgb(0, 255, 255)",
+              "rgb(0, 0, 255)",
+              "rgb(255, 0, 255)"
+            ];
+            const positions = expected.map((color) => gradient.indexOf(color));
+            const hue60 = hsvToRgb({ h: 60, s: 1, v: 1 });
+            const hue240 = hsvToRgb({ h: 240, s: 1, v: 1 });
+            return {
+              gradient,
+              positions,
+              ordered: positions.every((position, index) =>
+                position >= 0 && (index === 0 || position > positions[index - 1])),
+              hue60: rgbToHex(hue60),
+              hue240: rgbToHex(hue240)
+            };
+          })()`,
           returnByValue: true
         }
       }));
@@ -28,9 +45,10 @@ async function main() {
     });
     socket.addEventListener("error", () => reject(new Error("CDP connection failed.")));
   });
-  const passed = !result?.messageOpen &&
-    result?.jobStatus.includes("下载连接意外中断") &&
-    !result.jobStatus.toLowerCase().includes("terminated");
+
+  const passed = result?.ordered &&
+    result.hue60 === "#FFFF00" &&
+    result.hue240 === "#0000FF";
   console.log(JSON.stringify({ ...result, passed }));
   if (!passed) process.exitCode = 1;
 }
